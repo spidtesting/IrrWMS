@@ -1,0 +1,997 @@
+// IrrWMS — Irrigation Department Warehouse Management System
+// PostgreSQL + Prisma ORM
+//
+// After first migration, enable pg_trgm and add trigram indexes (see bottom comment block).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Enums
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  MANAGER
+  SUPERVISOR
+  STAFF
+  VIEWER
+}
+
+enum TransactionType {
+  GOODS_RECEIVED
+  GOODS_ISSUED
+  GOODS_RETURNED
+  STOCK_ADJUSTMENT
+  TRANSFER_IN
+  TRANSFER_OUT
+  DAMAGED
+  EXPIRED
+}
+
+enum EntryMethod {
+  MANUAL
+  BARCODE
+  RFID
+  BULK_IMPORT
+}
+
+enum EntryStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum ReportType {
+  DAILY_STOCK
+  MONTHLY_KPI
+  ANNUAL_INVENTORY
+  PARETO_ANALYSIS
+  DAMAGE_REPORT
+  STAFF_PRODUCTIVITY
+}
+
+enum TaskType {
+  STOCK_COUNT
+  DATA_ENTRY
+  INSPECTION
+  REPORT_GENERATION
+  GOODS_RECEIPT
+  GOODS_ISSUE
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  OVERDUE
+  CANCELLED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum NotifType {
+  LOW_STOCK
+  KPI_ALERT
+  TASK_DUE
+  APPROVAL_NEEDED
+  SYSTEM
+}
+
+enum GRNStatus {
+  DRAFT
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum GINStatus {
+  DRAFT
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum POStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  PARTIALLY_RECEIVED
+  RECEIVED
+  CANCELLED
+}
+
+enum RequisitionStatus {
+  DRAFT
+  PENDING
+  APPROVED
+  REJECTED
+  FULFILLED
+  CANCELLED
+}
+
+enum CountStatus {
+  PLANNED
+  IN_PROGRESS
+  RECOUNT
+  COMPLETED
+  APPROVED
+  CANCELLED
+}
+
+enum DamageStatus {
+  DRAFT
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum TransferStatus {
+  DRAFT
+  PENDING
+  IN_TRANSIT
+  RECEIVED
+  CANCELLED
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Auth (NextAuth v5 + Prisma Adapter)
+// ─────────────────────────────────────────────────────────────────────────────
+
+model User {
+  id                  String     @id @default(cuid())
+  employeeId          String     @unique
+  fullNameEn          String
+  fullNameSi          String
+  email               String     @unique
+  emailVerified       DateTime?
+  image               String?
+  password            String?
+  role                Role       @default(STAFF)
+  warehouseId         String?
+  warehouse           Warehouse? @relation(fields: [warehouseId], references: [id])
+  isActive            Boolean    @default(true)
+  lastLogin           DateTime?
+  failedLoginAttempts Int        @default(0)
+  lockedUntil         DateTime?
+  bcryptRounds        Int        @default(12)
+  deletedAt           DateTime?
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+
+  accounts            Account[]
+  sessions            Session[]
+  passwordResetTokens PasswordResetToken[]
+
+  stockEntries         StockEntry[]   @relation("StockEntryCreatedBy")
+  stockEntriesApproved StockEntry[]   @relation("StockEntryApprovedBy")
+  tasks                Task[]
+  auditLogs            AuditLog[]
+  notifications        Notification[]
+
+  itemsDeleted Item[] @relation("ItemDeletedBy")
+
+  grnsCreated  GoodsReceiptNote[] @relation("GRNCreatedBy")
+  grnsApproved GoodsReceiptNote[] @relation("GRNApprovedBy")
+  ginsCreated  GoodsIssueNote[]   @relation("GINCreatedBy")
+  ginsApproved GoodsIssueNote[]   @relation("GINApprovedBy")
+  ginsIssuedTo GoodsIssueNote[]   @relation("GINIssuedTo")
+
+  requisitionsCreated  Requisition[] @relation("RequisitionCreatedBy")
+  requisitionsApproved Requisition[] @relation("RequisitionApprovedBy")
+
+  posCreated  PurchaseOrder[] @relation("POCreatedBy")
+  posApproved PurchaseOrder[] @relation("POApprovedBy")
+
+  countCyclesConducted PhysicalCountCycle[] @relation("CountConductedBy")
+  countCyclesApproved  PhysicalCountCycle[] @relation("CountApprovedBy")
+
+  damageReportsFiled    DamageReport[] @relation("DamageReportedBy")
+  damageReportsApproved DamageReport[] @relation("DamageApprovedBy")
+
+  transfersRequested StockTransfer[] @relation("TransferRequestedBy")
+  transfersApproved  StockTransfer[] @relation("TransferApprovedBy")
+
+  reportsGenerated Report[]
+
+  @@index([role])
+  @@index([warehouseId])
+  @@index([isActive])
+  @@index([deletedAt])
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  token     String    @unique
+  userId    String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Core master data
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Warehouse {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  nameEn    String
+  nameSi    String
+  location  String
+  district  String
+  capacity  Float
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users        User[]
+  items        Item[]
+  inventories  Inventory[]
+  stockEntries StockEntry[]
+  kpiRecords   KPIRecord[]
+  reports      Report[]
+  zones        Zone[]
+  binLocations BinLocation[]
+
+  goodsReceiptNotes   GoodsReceiptNote[]
+  goodsIssueNotes     GoodsIssueNote[]
+  requisitions        Requisition[]
+  purchaseOrders      PurchaseOrder[]
+  physicalCountCycles PhysicalCountCycle[]
+  damageReports       DamageReport[]
+  transfersFrom       StockTransfer[]      @relation("TransferFromWarehouse")
+  transfersTo         StockTransfer[]      @relation("TransferToWarehouse")
+
+  @@index([isActive])
+  @@index([district])
+}
+
+model Category {
+  id     String @id @default(cuid())
+  code   String @unique
+  nameEn String
+  nameSi String
+
+  items Item[]
+
+  @@index([nameEn])
+  @@index([nameSi])
+}
+
+model Supplier {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  nameEn    String
+  nameSi    String
+  contact   String
+  email     String?
+  address   String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items             Item[]
+  purchaseOrders    PurchaseOrder[]
+  goodsReceiptNotes GoodsReceiptNote[]
+
+  @@index([isActive])
+  @@index([nameEn])
+}
+
+model Item {
+  id           String    @id @default(cuid())
+  itemCode     String    @unique
+  barcode      String?   @unique
+  rfidTag      String?   @unique
+  nameEn       String
+  nameSi       String
+  categoryId   String
+  category     Category  @relation(fields: [categoryId], references: [id])
+  unit         String
+  unitSi       String
+  minStock     Float     @default(0)
+  maxStock     Float     @default(0)
+  reorderLevel Float     @default(0)
+  unitPrice    Decimal   @db.Decimal(10, 2)
+  warehouseId  String
+  warehouse    Warehouse @relation(fields: [warehouseId], references: [id])
+  supplierId   String?
+  supplier     Supplier? @relation(fields: [supplierId], references: [id])
+  imageUrl     String?
+  weight       Float?
+  dimensions   String?
+  hsCode       String?
+  isActive     Boolean   @default(true)
+  deletedAt    DateTime?
+  deletedById  String?
+  deletedBy    User?     @relation("ItemDeletedBy", fields: [deletedById], references: [id])
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  inventory          Inventory[]
+  stockEntries       StockEntry[]
+  lotBatches         LotBatch[]
+  grnLines           GRNLine[]
+  ginLines           GINLine[]
+  requisitionLines   RequisitionLine[]
+  poLines            POLine[]
+  physicalCountLines PhysicalCountLine[]
+  damageReportLines  DamageReportLine[]
+  transferLines      TransferLine[]
+
+  @@index([isActive, warehouseId])
+  @@index([warehouseId])
+  @@index([categoryId])
+  @@index([supplierId])
+  @@index([barcode])
+  @@index([nameEn])
+  @@index([nameSi])
+  @@index([deletedAt])
+}
+
+model Zone {
+  id          String    @id @default(cuid())
+  code        String
+  nameEn      String
+  nameSi      String
+  warehouseId String
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  binLocations BinLocation[]
+
+  @@unique([warehouseId, code])
+  @@index([warehouseId])
+}
+
+model BinLocation {
+  id          String    @id @default(cuid())
+  code        String
+  zoneId      String
+  zone        Zone      @relation(fields: [zoneId], references: [id])
+  aisle       String?
+  shelf       String?
+  warehouseId String
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  inventories        Inventory[]
+  ginLines           GINLine[]
+  physicalCountLines PhysicalCountLine[]
+  transferLinesFrom  TransferLine[]      @relation("TransferLineFromBin")
+  transferLinesTo    TransferLine[]      @relation("TransferLineToBin")
+
+  @@unique([warehouseId, code])
+  @@index([warehouseId])
+  @@index([zoneId])
+}
+
+model LotBatch {
+  id           String    @id @default(cuid())
+  batchNo      String
+  expiryDate   DateTime?
+  itemId       String
+  item         Item      @relation(fields: [itemId], references: [id])
+  receivedDate DateTime  @default(now())
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  inventories Inventory[]
+  grnLines    GRNLine[]
+
+  @@unique([itemId, batchNo])
+  @@index([itemId])
+  @@index([expiryDate])
+}
+
+model Inventory {
+  id             String       @id @default(cuid())
+  itemId         String
+  item           Item         @relation(fields: [itemId], references: [id])
+  warehouseId    String
+  warehouse      Warehouse    @relation(fields: [warehouseId], references: [id])
+  currentStock   Float        @default(0)
+  reservedStock  Float        @default(0)
+  availableStock Float        @default(0)
+  binLocationId  String?
+  binLocation    BinLocation? @relation(fields: [binLocationId], references: [id])
+  lotBatchId     String?
+  lotBatch       LotBatch?    @relation(fields: [lotBatchId], references: [id])
+  lastCounted    DateTime?
+  accuracyScore  Float?
+  version        Int          @default(0)
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([itemId, warehouseId])
+  @@index([warehouseId])
+  @@index([itemId])
+  @@index([binLocationId])
+  @@index([lotBatchId])
+  @@index([currentStock])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Procurement & receiving
+// ─────────────────────────────────────────────────────────────────────────────
+
+model PurchaseOrder {
+  id           String    @id @default(cuid())
+  poNo         String    @unique
+  supplierId   String
+  supplier     Supplier  @relation(fields: [supplierId], references: [id])
+  warehouseId  String
+  warehouse    Warehouse @relation(fields: [warehouseId], references: [id])
+  status       POStatus  @default(DRAFT)
+  expectedDate DateTime?
+  totalAmount  Decimal?  @db.Decimal(12, 2)
+  notes        String?
+  createdById  String
+  createdBy    User      @relation("POCreatedBy", fields: [createdById], references: [id])
+  approvedById String?
+  approvedBy   User?     @relation("POApprovedBy", fields: [approvedById], references: [id])
+  approvedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  lines             POLine[]
+  goodsReceiptNotes GoodsReceiptNote[]
+
+  @@index([supplierId])
+  @@index([warehouseId])
+  @@index([status])
+  @@index([status, warehouseId])
+  @@index([expectedDate])
+}
+
+model POLine {
+  id        String        @id @default(cuid())
+  poId      String
+  po        PurchaseOrder @relation(fields: [poId], references: [id], onDelete: Cascade)
+  itemId    String
+  item      Item          @relation(fields: [itemId], references: [id])
+  quantity  Float
+  unitPrice Decimal       @db.Decimal(10, 2)
+  tax       Decimal       @default(0) @db.Decimal(10, 2)
+  lineTotal Decimal?      @db.Decimal(12, 2)
+
+  @@index([poId])
+  @@index([itemId])
+}
+
+model GoodsReceiptNote {
+  id           String         @id @default(cuid())
+  grnNo        String         @unique
+  supplierId   String
+  supplier     Supplier       @relation(fields: [supplierId], references: [id])
+  poId         String?
+  po           PurchaseOrder? @relation(fields: [poId], references: [id])
+  warehouseId  String
+  warehouse    Warehouse      @relation(fields: [warehouseId], references: [id])
+  status       GRNStatus      @default(DRAFT)
+  receivedDate DateTime?
+  remarks      String?
+  createdById  String
+  createdBy    User           @relation("GRNCreatedBy", fields: [createdById], references: [id])
+  approverId   String?
+  approver     User?          @relation("GRNApprovedBy", fields: [approverId], references: [id])
+  approvedAt   DateTime?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  lines        GRNLine[]
+  stockEntries StockEntry[]
+
+  @@index([supplierId])
+  @@index([warehouseId])
+  @@index([poId])
+  @@index([status])
+  @@index([status, warehouseId])
+  @@index([createdAt])
+}
+
+model GRNLine {
+  id          String           @id @default(cuid())
+  grnId       String
+  grn         GoodsReceiptNote @relation(fields: [grnId], references: [id], onDelete: Cascade)
+  itemId      String
+  item        Item             @relation(fields: [itemId], references: [id])
+  orderedQty  Float            @default(0)
+  receivedQty Float
+  unitPrice   Decimal          @db.Decimal(10, 2)
+  lotBatchId  String?
+  lotBatch    LotBatch?        @relation(fields: [lotBatchId], references: [id])
+
+  @@index([grnId])
+  @@index([itemId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Requisitions & issuing
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Requisition {
+  id              String            @id @default(cuid())
+  reqNo           String            @unique
+  requestedByDept String
+  warehouseId     String
+  warehouse       Warehouse         @relation(fields: [warehouseId], references: [id])
+  status          RequisitionStatus @default(DRAFT)
+  priority        Priority          @default(MEDIUM)
+  purpose         String?
+  createdById     String
+  createdBy       User              @relation("RequisitionCreatedBy", fields: [createdById], references: [id])
+  approvedById    String?
+  approvedBy      User?             @relation("RequisitionApprovedBy", fields: [approvedById], references: [id])
+  approvedAt      DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  lines           RequisitionLine[]
+  goodsIssueNotes GoodsIssueNote[]
+
+  @@index([warehouseId])
+  @@index([status])
+  @@index([status, warehouseId])
+  @@index([priority])
+  @@index([createdAt])
+}
+
+model RequisitionLine {
+  id            String      @id @default(cuid())
+  requisitionId String
+  requisition   Requisition @relation(fields: [requisitionId], references: [id], onDelete: Cascade)
+  itemId        String
+  item          Item        @relation(fields: [itemId], references: [id])
+  requestedQty  Float
+  notes         String?
+
+  @@index([requisitionId])
+  @@index([itemId])
+}
+
+model GoodsIssueNote {
+  id            String       @id @default(cuid())
+  ginNo         String       @unique
+  requisitionId String?
+  requisition   Requisition? @relation(fields: [requisitionId], references: [id])
+  issuedToId    String
+  issuedTo      User         @relation("GINIssuedTo", fields: [issuedToId], references: [id])
+  warehouseId   String
+  warehouse     Warehouse    @relation(fields: [warehouseId], references: [id])
+  status        GINStatus    @default(DRAFT)
+  issueDate     DateTime?
+  remarks       String?
+  createdById   String
+  createdBy     User         @relation("GINCreatedBy", fields: [createdById], references: [id])
+  approverId    String?
+  approver      User?        @relation("GINApprovedBy", fields: [approverId], references: [id])
+  approvedAt    DateTime?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  lines        GINLine[]
+  stockEntries StockEntry[]
+
+  @@index([requisitionId])
+  @@index([warehouseId])
+  @@index([issuedToId])
+  @@index([status])
+  @@index([status, warehouseId])
+  @@index([createdAt])
+}
+
+model GINLine {
+  id            String         @id @default(cuid())
+  ginId         String
+  gin           GoodsIssueNote @relation(fields: [ginId], references: [id], onDelete: Cascade)
+  itemId        String
+  item          Item           @relation(fields: [itemId], references: [id])
+  requestedQty  Float          @default(0)
+  issuedQty     Float
+  binLocationId String?
+  binLocation   BinLocation?   @relation(fields: [binLocationId], references: [id])
+
+  @@index([ginId])
+  @@index([itemId])
+  @@index([binLocationId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Stock movements
+// ─────────────────────────────────────────────────────────────────────────────
+
+model StockEntry {
+  id             String            @id @default(cuid())
+  entryNumber    String            @unique
+  type           TransactionType
+  itemId         String
+  item           Item              @relation(fields: [itemId], references: [id])
+  warehouseId    String
+  warehouse      Warehouse         @relation(fields: [warehouseId], references: [id])
+  quantity       Float
+  unitPrice      Decimal?          @db.Decimal(10, 2)
+  totalValue     Decimal?          @db.Decimal(12, 2)
+  referenceNo    String?
+  remarks        String?
+  entryMethod    EntryMethod       @default(MANUAL)
+  entryStartTime DateTime?
+  entryEndTime   DateTime?
+  entryDuration  Int?
+  idempotencyKey String?           @unique
+  grnId          String?
+  grn            GoodsReceiptNote? @relation(fields: [grnId], references: [id])
+  ginId          String?
+  gin            GoodsIssueNote?   @relation(fields: [ginId], references: [id])
+  createdById    String
+  createdBy      User              @relation("StockEntryCreatedBy", fields: [createdById], references: [id])
+  approvedById   String?
+  approvedBy     User?             @relation("StockEntryApprovedBy", fields: [approvedById], references: [id])
+  approvedAt     DateTime?
+  status         EntryStatus       @default(PENDING)
+  createdAt      DateTime          @default(now())
+
+  @@index([warehouseId, createdAt])
+  @@index([status, warehouseId])
+  @@index([itemId])
+  @@index([createdById])
+  @@index([type])
+  @@index([grnId])
+  @@index([ginId])
+  @@index([createdAt])
+}
+
+model StockTransfer {
+  id              String         @id @default(cuid())
+  transferNo      String         @unique
+  fromWarehouseId String
+  fromWarehouse   Warehouse      @relation("TransferFromWarehouse", fields: [fromWarehouseId], references: [id])
+  toWarehouseId   String
+  toWarehouse     Warehouse      @relation("TransferToWarehouse", fields: [toWarehouseId], references: [id])
+  status          TransferStatus @default(DRAFT)
+  requestedById   String
+  requestedBy     User           @relation("TransferRequestedBy", fields: [requestedById], references: [id])
+  approvedById    String?
+  approvedBy      User?          @relation("TransferApprovedBy", fields: [approvedById], references: [id])
+  approvedAt      DateTime?
+  shippedAt       DateTime?
+  receivedAt      DateTime?
+  remarks         String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  lines TransferLine[]
+
+  @@index([fromWarehouseId])
+  @@index([toWarehouseId])
+  @@index([status])
+  @@index([status, fromWarehouseId])
+  @@index([createdAt])
+}
+
+model TransferLine {
+  id         String        @id @default(cuid())
+  transferId String
+  transfer   StockTransfer @relation(fields: [transferId], references: [id], onDelete: Cascade)
+  itemId     String
+  item       Item          @relation(fields: [itemId], references: [id])
+  quantity   Float
+  fromBinId  String?
+  fromBin    BinLocation?  @relation("TransferLineFromBin", fields: [fromBinId], references: [id])
+  toBinId    String?
+  toBin      BinLocation?  @relation("TransferLineToBin", fields: [toBinId], references: [id])
+
+  @@index([transferId])
+  @@index([itemId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Physical count & damage
+// ─────────────────────────────────────────────────────────────────────────────
+
+model PhysicalCountCycle {
+  id            String      @id @default(cuid())
+  cycleNo       String      @unique
+  warehouseId   String
+  warehouse     Warehouse   @relation(fields: [warehouseId], references: [id])
+  conductedById String
+  conductedBy   User        @relation("CountConductedBy", fields: [conductedById], references: [id])
+  approvedById  String?
+  approvedBy    User?       @relation("CountApprovedBy", fields: [approvedById], references: [id])
+  status        CountStatus @default(PLANNED)
+  startedAt     DateTime?
+  completedAt   DateTime?
+  approvedAt    DateTime?
+  remarks       String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  lines PhysicalCountLine[]
+
+  @@index([warehouseId])
+  @@index([status])
+  @@index([status, warehouseId])
+  @@index([conductedById])
+}
+
+model PhysicalCountLine {
+  id            String             @id @default(cuid())
+  cycleId       String
+  cycle         PhysicalCountCycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  itemId        String
+  item          Item               @relation(fields: [itemId], references: [id])
+  binLocationId String?
+  binLocation   BinLocation?       @relation(fields: [binLocationId], references: [id])
+  expectedQty   Float
+  countedQty    Float?
+  variance      Float?
+  isBlind       Boolean            @default(true)
+  recountedQty  Float?
+  notes         String?
+
+  @@index([cycleId])
+  @@index([itemId])
+  @@index([binLocationId])
+}
+
+model DamageReport {
+  id           String       @id @default(cuid())
+  reportNo     String       @unique
+  warehouseId  String
+  warehouse    Warehouse    @relation(fields: [warehouseId], references: [id])
+  reportedById String
+  reportedBy   User         @relation("DamageReportedBy", fields: [reportedById], references: [id])
+  approvedById String?
+  approvedBy   User?        @relation("DamageApprovedBy", fields: [approvedById], references: [id])
+  status       DamageStatus @default(DRAFT)
+  totalCost    Decimal      @default(0) @db.Decimal(12, 2)
+  incidentDate DateTime?
+  remarks      String?
+  approvedAt   DateTime?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  lines DamageReportLine[]
+
+  @@index([warehouseId])
+  @@index([status])
+  @@index([status, warehouseId])
+  @@index([reportedById])
+  @@index([createdAt])
+}
+
+model DamageReportLine {
+  id             String       @id @default(cuid())
+  damageReportId String
+  damageReport   DamageReport @relation(fields: [damageReportId], references: [id], onDelete: Cascade)
+  itemId         String
+  item           Item         @relation(fields: [itemId], references: [id])
+  quantity       Float
+  reason         String
+  costImpact     Decimal      @db.Decimal(12, 2)
+  images         Json?
+
+  @@index([damageReportId])
+  @@index([itemId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// KPI, reports, tasks, audit, notifications
+// ─────────────────────────────────────────────────────────────────────────────
+
+model KPIRecord {
+  id                   String    @id @default(cuid())
+  warehouseId          String
+  warehouse            Warehouse @relation(fields: [warehouseId], references: [id])
+  recordDate           DateTime
+  month                Int
+  year                 Int
+  inventoryAccuracy    Float
+  avgEntryTime         Float
+  orderFulfillmentRate Float
+  stockTurnoverRate    Float
+  staffProductivity    Float
+  shrinkageRate        Float
+  pickingEfficiency    Float
+  totalTransactions    Int
+  totalErrors          Int
+  createdAt            DateTime  @default(now())
+
+  @@unique([warehouseId, month, year])
+  @@index([warehouseId])
+  @@index([year, month])
+  @@index([recordDate])
+}
+
+model Report {
+  id            String     @id @default(cuid())
+  reportNo      String     @unique
+  type          ReportType
+  titleEn       String
+  titleSi       String
+  warehouseId   String
+  warehouse     Warehouse  @relation(fields: [warehouseId], references: [id])
+  fromDate      DateTime
+  toDate        DateTime
+  generatedById String
+  generatedBy   User       @relation(fields: [generatedById], references: [id])
+  fileUrl       String?
+  metadata      Json?
+  createdAt     DateTime   @default(now())
+
+  @@index([warehouseId])
+  @@index([type])
+  @@index([type, warehouseId])
+  @@index([createdAt])
+  @@index([fromDate, toDate])
+}
+
+model Task {
+  id           String     @id @default(cuid())
+  titleEn      String
+  titleSi      String
+  assignedToId String
+  assignedTo   User       @relation(fields: [assignedToId], references: [id])
+  taskType     TaskType
+  dueDate      DateTime
+  completedAt  DateTime?
+  status       TaskStatus @default(PENDING)
+  priority     Priority   @default(MEDIUM)
+  notes        String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@index([assignedToId, status])
+  @@index([status])
+  @@index([dueDate])
+  @@index([priority])
+}
+
+model AuditLog {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id])
+  action         String
+  module         String
+  details        Json
+  correlationId  String?
+  userAgent      String?
+  beforeSnapshot Json?
+  afterSnapshot  Json?
+  ipAddress      String?
+  createdAt      DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([module, createdAt])
+  @@index([correlationId])
+  @@index([createdAt])
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+  titleEn   String
+  titleSi   String
+  message   String
+  type      NotifType
+  isRead    Boolean   @default(false)
+  link      String?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, isRead])
+  @@index([userId, createdAt])
+  @@index([type])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Attachments & webhooks
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Attachment {
+  id         String   @id @default(cuid())
+  entityType String
+  entityId   String
+  url        String
+  publicId   String?
+  mimeType   String
+  sizeBytes  Int
+  fileName   String?
+  uploadedBy String?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
+
+model WebhookDelivery {
+  id            String    @id @default(cuid())
+  event         String
+  payload       Json
+  status        String    @default("PENDING")
+  attempts      Int       @default(0)
+  lastAttemptAt DateTime?
+  nextRetryAt   DateTime?
+  responseCode  Int?
+  responseBody  String?   @db.Text
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([status])
+  @@index([event])
+  @@index([nextRetryAt])
+  @@index([createdAt])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Trigram full-text search (apply via raw SQL migration after enabling pg_trgm):
+//
+// CREATE EXTENSION IF NOT EXISTS pg_trgm;
+// CREATE INDEX "Item_nameEn_trgm_idx" ON "Item" USING gin ("nameEn" gin_trgm_ops);
+// CREATE INDEX "Item_nameSi_trgm_idx" ON "Item" USING gin ("nameSi" gin_trgm_ops);
+// CREATE INDEX "Category_nameEn_trgm_idx" ON "Category" USING gin ("nameEn" gin_trgm_ops);
+// CREATE INDEX "Category_nameSi_trgm_idx" ON "Category" USING gin ("nameSi" gin_trgm_ops);
+// CREATE INDEX "Supplier_nameEn_trgm_idx" ON "Supplier" USING gin ("nameEn" gin_trgm_ops);
+// ─────────────────────────────────────────────────────────────────────────────
