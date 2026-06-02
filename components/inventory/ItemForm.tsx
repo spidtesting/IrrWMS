@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CloudinaryUpload } from "@/components/upload/CloudinaryUpload";
+import { BarcodeScanInput } from "@/components/shared/BarcodeScanInput";
 
 const itemFormSchema = z.object({
   itemCode: z.string().min(1).max(50),
@@ -104,7 +105,12 @@ export function ItemForm({
             <FormItem>
               <FormLabel>{t("barcode")}</FormLabel>
               <FormControl>
-                <Input {...field} className="font-mono" />
+                <BarcodeScanInput
+                  value={field.value ?? ""}
+                  onChange={field.onChange}
+                  placeholder={t("manualBarcode")}
+                  showLookupButton={false}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>

@@ -136,7 +136,18 @@ export function EntryForm({ items = [], warehouses = [], onSubmit, isSubmitting 
         </div>
 
         {form.watch("entryMethod") === "BARCODE" && (
-          <BarcodeInput onItemFound={(itemId) => form.setValue("itemId", itemId)} />
+          <BarcodeInput
+            onItemFound={(item) => {
+              form.setValue("itemId", item.id);
+              form.setValue("entryMethod", "BARCODE");
+              if (item.warehouseId) {
+                form.setValue("warehouseId", item.warehouseId);
+              }
+              if (item.unitPrice !== undefined && item.unitPrice !== null) {
+                form.setValue("unitPrice", Number(item.unitPrice));
+              }
+            }}
+          />
         )}
 
         <FormField

@@ -3,7 +3,22 @@
     "appName": "IrrWMS",
     "loading": "පූරණය වෙමින්...",
     "save": "සුරකින්න",
-    "cancel": "අවලංගු"
+    "cancel": "අවලංගු",
+    "goHome": "Dashboard වෙත යන්න",
+    "enterBarcode": "Barcode එක ඇතුළත් කරන්න හෝ scan කරන්න",
+    "scanWithCamera": "කැමරාවෙන් scan කරන්න",
+    "scanBarcodeHint": "Barcode එක කැමරාවට යොමු කරන්න හෝ code එක typing කරන්න.",
+    "lookup": "සොයන්න",
+    "searching": "සොයමින්...",
+    "cameraError": "කැමරාවට ප්‍රවේශ විය නොහැක. අවසර පරීක්ෂා කර manual entry භාවිතා කරන්න."
+  },
+  "errors": {
+    "title": "යමක් වැරදී ඇත",
+    "description": "අනපේක්ෂිත දෝෂයක් සිදු විය. කරුණාකර නැවත උත්සාහ කරන්න.",
+    "retry": "නැවත උත්සාහ කරන්න",
+    "goHome": "Dashboard වෙත යන්න",
+    "notFoundTitle": "පිටුව හමු නොවීය",
+    "notFoundDescription": "ඔබ සොයන පිටුව නොමැත හෝ එය මාරු කර ඇත."
   },
   "nav": {
     "overview": "දළ විශ්ලේෂණය",

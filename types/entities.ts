@@ -38,6 +38,10 @@ export type ItemRef = BilingualName & {
   imageUrl?: string | null;
 };
 
+export type BarcodeLookupResult = ItemRef & {
+  warehouseId: string;
+};
+
 export type InventoryRecord = {
   id: string;
   itemId: string;

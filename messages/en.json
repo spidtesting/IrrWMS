@@ -3,7 +3,22 @@
     "appName": "IrrWMS",
     "loading": "Loading...",
     "save": "Save",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "goHome": "Go to Dashboard",
+    "enterBarcode": "Enter or scan barcode",
+    "scanWithCamera": "Scan with camera",
+    "scanBarcodeHint": "Point your camera at a barcode or type the code manually.",
+    "lookup": "Lookup",
+    "searching": "Searching...",
+    "cameraError": "Unable to access camera. Check permissions or use manual entry."
+  },
+  "errors": {
+    "title": "Something went wrong",
+    "description": "An unexpected error occurred. Please try again.",
+    "retry": "Try again",
+    "goHome": "Go to Dashboard",
+    "notFoundTitle": "Page not found",
+    "notFoundDescription": "The page you are looking for does not exist or has been moved."
   },
   "nav": {
     "overview": "Overview",

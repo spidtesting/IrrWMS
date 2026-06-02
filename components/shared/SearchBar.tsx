@@ -1,11 +1,17 @@
 "use client";
 
 import * as React from "react";
+import dynamic from "next/dynamic";
 import { Search, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+
+const BarcodeScanInput = dynamic(
+  () => import("@/components/shared/BarcodeScanInput").then((mod) => mod.BarcodeScanInput),
+  { ssr: false },
+);
 
 export type SearchBarProps = {
   value: string;
@@ -14,6 +20,7 @@ export type SearchBarProps = {
   className?: string;
   debounceMs?: number;
   onDebouncedChange?: (value: string) => void;
+  enableBarcodeScan?: boolean;
 };
 
 function SearchBar({
@@ -23,6 +30,7 @@ function SearchBar({
   className,
   debounceMs = 300,
   onDebouncedChange,
+  enableBarcodeScan = false,
 }: SearchBarProps) {
   React.useEffect(() => {
     if (!onDebouncedChange) return;
@@ -33,6 +41,27 @@ function SearchBar({
 
     return () => window.clearTimeout(timer);
   }, [value, debounceMs, onDebouncedChange]);
+
+  function applyBarcode(code: string) {
+    onChange(code);
+    onDebouncedChange?.(code);
+  }
+
+  if (enableBarcodeScan) {
+    return (
+      <div className={cn("relative", className)}>
+        <Search className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <BarcodeScanInput
+          value={value}
+          onChange={onChange}
+          onScanComplete={applyBarcode}
+          placeholder={placeholder}
+          showLookupButton={false}
+          inputClassName="pl-9"
+        />
+      </div>
+    );
+  }
 
   return (
     <div className={cn("relative", className)}>

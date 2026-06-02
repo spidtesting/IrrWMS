@@ -70,6 +70,7 @@ export default function InventoryPage() {
           onDebouncedChange={setDebouncedSearch}
           placeholder={t("searchPlaceholder")}
           className="max-w-md"
+          enableBarcodeScan
         />
         <div className="flex items-center gap-2">
           <Switch id="low-stock" checked={lowStockOnly} onCheckedChange={setLowStockOnly} />
