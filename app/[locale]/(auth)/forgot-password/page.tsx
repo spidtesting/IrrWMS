@@ -51,7 +51,7 @@ export default function ForgotPasswordPage() {
       className="w-full max-w-md"
     >
       <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/95 shadow-2xl shadow-black/30 backdrop-blur-sm dark:bg-[#252545]/95">
-        <div className="bg-primary px-8 py-7 text-primary-foreground">
+        <div className="bg-primary px-4 py-6 text-primary-foreground sm:px-8 sm:py-7">
           <div className="mb-2 flex items-start justify-between gap-4">
             <div>
               <h1 className="text-2xl font-bold tracking-tight">
@@ -75,7 +75,7 @@ export default function ForgotPasswordPage() {
           </div>
         </div>
 
-        <div className="px-8 py-8">
+        <div className="px-4 py-6 sm:px-8 sm:py-8">
           {isSubmitted ? (
             <div className="space-y-4 text-center">
               <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">

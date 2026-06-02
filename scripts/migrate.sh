@@ -13,9 +13,15 @@ if [[ -f .env ]]; then
   set +a
 fi
 
-if [[ -z "${DATABASE_URL:-}" ]]; then
-  echo "ERROR: DATABASE_URL is not set" >&2
+MIGRATE_URL="${DIRECT_URL:-${DATABASE_URL:-}}"
+if [[ -z "$MIGRATE_URL" ]]; then
+  echo "ERROR: DIRECT_URL or DATABASE_URL is not set" >&2
   exit 1
+fi
+
+export DATABASE_URL="$MIGRATE_URL"
+if [[ -n "${DIRECT_URL:-}" ]]; then
+  export DIRECT_URL="$MIGRATE_URL"
 fi
 
 MODE="${1:-deploy}"
@@ -32,14 +38,13 @@ case "$MODE" in
     npx prisma migrate reset --force
     ;;
   *)
-    echo "Usage: $0 [dev|deploy|reset] [extra prisma args...]" >&2
+    echo "Usage: $0 [dev|deploy|reset|extras] [extra prisma args...]" >&2
     exit 1
     ;;
+  extras)
+    npx prisma db execute --file supabase/migrations/20250601000002_trgm_indexes.sql
+    npx prisma db execute --file supabase/migrations/20250601000003_rls_hardening.sql
+    ;;
 esac
-
-echo "==> Running pg_trgm extension (if not exists)"
-npx prisma db execute --stdin <<'SQL'
-CREATE EXTENSION IF NOT EXISTS pg_trgm;
-SQL
 
 echo "==> Migration complete"

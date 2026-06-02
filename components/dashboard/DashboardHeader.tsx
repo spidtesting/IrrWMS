@@ -38,20 +38,21 @@ export function DashboardHeader() {
       .toUpperCase() ?? "IW";
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="flex items-center gap-2">
+    <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center justify-between gap-2 border-b bg-background/95 px-3 backdrop-blur supports-[backdrop-filter]:bg-background/60 sm:h-16 sm:px-4">
+      <div className="flex min-w-0 items-center gap-2">
         <Button
           variant="ghost"
           size="icon"
-          className="lg:hidden"
+          className="shrink-0 lg:hidden"
           onClick={toggleMobileOpen}
           aria-label={t("nav.openMenu")}
         >
           <Menu className="h-5 w-5" />
         </Button>
+        <span className="truncate text-sm font-semibold lg:hidden">IrrWMS</span>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex shrink-0 items-center gap-0.5 sm:gap-2">
         <Button
           variant="ghost"
           size="icon"

@@ -1,0 +1,16 @@
+# Supabase local CLI config (optional — for `supabase start` / `supabase db push`)
+# See: https://supabase.com/docs/guides/cli/config
+
+project_id = "irrwms"
+
+[db]
+port = 54322
+major_version = 15
+
+[api]
+enabled = true
+port = 54321
+
+[studio]
+enabled = true
+port = 54323

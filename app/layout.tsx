@@ -27,6 +27,12 @@ export const metadata: Metadata = {
   description: "Irrigation Department Warehouse Management System — bilingual WMS for Sri Lanka",
 };
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
+
 export default async function RootLayout({
   children,
 }: Readonly<{

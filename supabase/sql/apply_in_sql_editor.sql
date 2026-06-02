@@ -1,0 +1,1342 @@
+-- =============================================================================
+-- IrrWMS — paste this ENTIRE file into Supabase Dashboard → SQL Editor → Run
+-- Prerequisites: empty database (new project) or reset dev branch first.
+-- =============================================================================
+
+-- >>> migrations/20250601000000_extensions.sql
+-- IrrWMS Supabase migration 00: extensions
+-- Safe to re-run (idempotent).
+
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
+-- >>> migrations/20250601000001_initial_schema.sql
+-- IrrWMS Supabase migration 01: full schema (generated from prisma/schema.prisma)
+
+-- CreateEnum
+CREATE TYPE "Role" AS ENUM ('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'SUPERVISOR', 'STAFF', 'VIEWER');
+
+-- CreateEnum
+CREATE TYPE "TransactionType" AS ENUM ('GOODS_RECEIVED', 'GOODS_ISSUED', 'GOODS_RETURNED', 'STOCK_ADJUSTMENT', 'TRANSFER_IN', 'TRANSFER_OUT', 'DAMAGED', 'EXPIRED');
+
+-- CreateEnum
+CREATE TYPE "EntryMethod" AS ENUM ('MANUAL', 'BARCODE', 'RFID', 'BULK_IMPORT');
+
+-- CreateEnum
+CREATE TYPE "EntryStatus" AS ENUM ('PENDING', 'APPROVED', 'REJECTED', 'CANCELLED');
+
+-- CreateEnum
+CREATE TYPE "ReportType" AS ENUM ('DAILY_STOCK', 'MONTHLY_KPI', 'ANNUAL_INVENTORY', 'PARETO_ANALYSIS', 'DAMAGE_REPORT', 'STAFF_PRODUCTIVITY');
+
+-- CreateEnum
+CREATE TYPE "TaskType" AS ENUM ('STOCK_COUNT', 'DATA_ENTRY', 'INSPECTION', 'REPORT_GENERATION', 'GOODS_RECEIPT', 'GOODS_ISSUE');
+
+-- CreateEnum
+CREATE TYPE "TaskStatus" AS ENUM ('PENDING', 'IN_PROGRESS', 'COMPLETED', 'OVERDUE', 'CANCELLED');
+
+-- CreateEnum
+CREATE TYPE "Priority" AS ENUM ('LOW', 'MEDIUM', 'HIGH', 'URGENT');
+
+-- CreateEnum
+CREATE TYPE "NotifType" AS ENUM ('LOW_STOCK', 'KPI_ALERT', 'TASK_DUE', 'APPROVAL_NEEDED', 'SYSTEM');
+
+-- CreateEnum
+CREATE TYPE "GRNStatus" AS ENUM ('DRAFT', 'PENDING', 'APPROVED', 'REJECTED', 'CANCELLED');
+
+-- CreateEnum
+CREATE TYPE "GINStatus" AS ENUM ('DRAFT', 'PENDING', 'APPROVED', 'REJECTED', 'CANCELLED');
+
+-- CreateEnum
+CREATE TYPE "POStatus" AS ENUM ('DRAFT', 'SUBMITTED', 'APPROVED', 'PARTIALLY_RECEIVED', 'RECEIVED', 'CANCELLED');
+
+-- CreateEnum
+CREATE TYPE "RequisitionStatus" AS ENUM ('DRAFT', 'PENDING', 'APPROVED', 'REJECTED', 'FULFILLED', 'CANCELLED');
+
+-- CreateEnum
+CREATE TYPE "CountStatus" AS ENUM ('PLANNED', 'IN_PROGRESS', 'RECOUNT', 'COMPLETED', 'APPROVED', 'CANCELLED');
+
+-- CreateEnum
+CREATE TYPE "DamageStatus" AS ENUM ('DRAFT', 'PENDING', 'APPROVED', 'REJECTED');
+
+-- CreateEnum
+CREATE TYPE "TransferStatus" AS ENUM ('DRAFT', 'PENDING', 'IN_TRANSIT', 'RECEIVED', 'CANCELLED');
+
+-- CreateTable
+CREATE TABLE "User" (
+    "id" TEXT NOT NULL,
+    "employeeId" TEXT NOT NULL,
+    "fullNameEn" TEXT NOT NULL,
+    "fullNameSi" TEXT NOT NULL,
+    "email" TEXT NOT NULL,
+    "emailVerified" TIMESTAMP(3),
+    "image" TEXT,
+    "password" TEXT,
+    "role" "Role" NOT NULL DEFAULT 'STAFF',
+    "warehouseId" TEXT,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "lastLogin" TIMESTAMP(3),
+    "failedLoginAttempts" INTEGER NOT NULL DEFAULT 0,
+    "lockedUntil" TIMESTAMP(3),
+    "bcryptRounds" INTEGER NOT NULL DEFAULT 12,
+    "deletedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "User_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Account" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "type" TEXT NOT NULL,
+    "provider" TEXT NOT NULL,
+    "providerAccountId" TEXT NOT NULL,
+    "refresh_token" TEXT,
+    "access_token" TEXT,
+    "expires_at" INTEGER,
+    "token_type" TEXT,
+    "scope" TEXT,
+    "id_token" TEXT,
+    "session_state" TEXT,
+
+    CONSTRAINT "Account_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Session" (
+    "id" TEXT NOT NULL,
+    "sessionToken" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "expires" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Session_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "VerificationToken" (
+    "identifier" TEXT NOT NULL,
+    "token" TEXT NOT NULL,
+    "expires" TIMESTAMP(3) NOT NULL
+);
+
+-- CreateTable
+CREATE TABLE "PasswordResetToken" (
+    "id" TEXT NOT NULL,
+    "token" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "expiresAt" TIMESTAMP(3) NOT NULL,
+    "usedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "PasswordResetToken_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Warehouse" (
+    "id" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
+    "nameEn" TEXT NOT NULL,
+    "nameSi" TEXT NOT NULL,
+    "location" TEXT NOT NULL,
+    "district" TEXT NOT NULL,
+    "capacity" DOUBLE PRECISION NOT NULL,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Warehouse_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Category" (
+    "id" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
+    "nameEn" TEXT NOT NULL,
+    "nameSi" TEXT NOT NULL,
+
+    CONSTRAINT "Category_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Supplier" (
+    "id" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
+    "nameEn" TEXT NOT NULL,
+    "nameSi" TEXT NOT NULL,
+    "contact" TEXT NOT NULL,
+    "email" TEXT,
+    "address" TEXT NOT NULL,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Supplier_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Item" (
+    "id" TEXT NOT NULL,
+    "itemCode" TEXT NOT NULL,
+    "barcode" TEXT,
+    "rfidTag" TEXT,
+    "nameEn" TEXT NOT NULL,
+    "nameSi" TEXT NOT NULL,
+    "categoryId" TEXT NOT NULL,
+    "unit" TEXT NOT NULL,
+    "unitSi" TEXT NOT NULL,
+    "minStock" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "maxStock" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "reorderLevel" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "unitPrice" DECIMAL(10,2) NOT NULL,
+    "warehouseId" TEXT NOT NULL,
+    "supplierId" TEXT,
+    "imageUrl" TEXT,
+    "weight" DOUBLE PRECISION,
+    "dimensions" TEXT,
+    "hsCode" TEXT,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "deletedAt" TIMESTAMP(3),
+    "deletedById" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Item_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Zone" (
+    "id" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
+    "nameEn" TEXT NOT NULL,
+    "nameSi" TEXT NOT NULL,
+    "warehouseId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Zone_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "BinLocation" (
+    "id" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
+    "zoneId" TEXT NOT NULL,
+    "aisle" TEXT,
+    "shelf" TEXT,
+    "warehouseId" TEXT NOT NULL,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "BinLocation_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "LotBatch" (
+    "id" TEXT NOT NULL,
+    "batchNo" TEXT NOT NULL,
+    "expiryDate" TIMESTAMP(3),
+    "itemId" TEXT NOT NULL,
+    "receivedDate" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "LotBatch_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Inventory" (
+    "id" TEXT NOT NULL,
+    "itemId" TEXT NOT NULL,
+    "warehouseId" TEXT NOT NULL,
+    "currentStock" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "reservedStock" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "availableStock" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "binLocationId" TEXT,
+    "lotBatchId" TEXT,
+    "lastCounted" TIMESTAMP(3),
+    "accuracyScore" DOUBLE PRECISION,
+    "version" INTEGER NOT NULL DEFAULT 0,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Inventory_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "PurchaseOrder" (
+    "id" TEXT NOT NULL,
+    "poNo" TEXT NOT NULL,
+    "supplierId" TEXT NOT NULL,
+    "warehouseId" TEXT NOT NULL,
+    "status" "POStatus" NOT NULL DEFAULT 'DRAFT',
+    "expectedDate" TIMESTAMP(3),
+    "totalAmount" DECIMAL(12,2),
+    "notes" TEXT,
+    "createdById" TEXT NOT NULL,
+    "approvedById" TEXT,
+    "approvedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "PurchaseOrder_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "POLine" (
+    "id" TEXT NOT NULL,
+    "poId" TEXT NOT NULL,
+    "itemId" TEXT NOT NULL,
+    "quantity" DOUBLE PRECISION NOT NULL,
+    "unitPrice" DECIMAL(10,2) NOT NULL,
+    "tax" DECIMAL(10,2) NOT NULL DEFAULT 0,
+    "lineTotal" DECIMAL(12,2),
+
+    CONSTRAINT "POLine_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "GoodsReceiptNote" (
+    "id" TEXT NOT NULL,
+    "grnNo" TEXT NOT NULL,
+    "supplierId" TEXT NOT NULL,
+    "poId" TEXT,
+    "warehouseId" TEXT NOT NULL,
+    "status" "GRNStatus" NOT NULL DEFAULT 'DRAFT',
+    "receivedDate" TIMESTAMP(3),
+    "remarks" TEXT,
+    "createdById" TEXT NOT NULL,
+    "approverId" TEXT,
+    "approvedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "GoodsReceiptNote_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "GRNLine" (
+    "id" TEXT NOT NULL,
+    "grnId" TEXT NOT NULL,
+    "itemId" TEXT NOT NULL,
+    "orderedQty" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "receivedQty" DOUBLE PRECISION NOT NULL,
+    "unitPrice" DECIMAL(10,2) NOT NULL,
+    "lotBatchId" TEXT,
+
+    CONSTRAINT "GRNLine_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Requisition" (
+    "id" TEXT NOT NULL,
+    "reqNo" TEXT NOT NULL,
+    "requestedByDept" TEXT NOT NULL,
+    "warehouseId" TEXT NOT NULL,
+    "status" "RequisitionStatus" NOT NULL DEFAULT 'DRAFT',
+    "priority" "Priority" NOT NULL DEFAULT 'MEDIUM',
+    "purpose" TEXT,
+    "createdById" TEXT NOT NULL,
+    "approvedById" TEXT,
+    "approvedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Requisition_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "RequisitionLine" (
+    "id" TEXT NOT NULL,
+    "requisitionId" TEXT NOT NULL,
+    "itemId" TEXT NOT NULL,
+    "requestedQty" DOUBLE PRECISION NOT NULL,
+    "notes" TEXT,
+
+    CONSTRAINT "RequisitionLine_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "GoodsIssueNote" (
+    "id" TEXT NOT NULL,
+    "ginNo" TEXT NOT NULL,
+    "requisitionId" TEXT,
+    "issuedToId" TEXT NOT NULL,
+    "warehouseId" TEXT NOT NULL,
+    "status" "GINStatus" NOT NULL DEFAULT 'DRAFT',
+    "issueDate" TIMESTAMP(3),
+    "remarks" TEXT,
+    "createdById" TEXT NOT NULL,
+    "approverId" TEXT,
+    "approvedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "GoodsIssueNote_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "GINLine" (
+    "id" TEXT NOT NULL,
+    "ginId" TEXT NOT NULL,
+    "itemId" TEXT NOT NULL,
+    "requestedQty" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "issuedQty" DOUBLE PRECISION NOT NULL,
+    "binLocationId" TEXT,
+
+    CONSTRAINT "GINLine_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "StockEntry" (
+    "id" TEXT NOT NULL,
+    "entryNumber" TEXT NOT NULL,
+    "type" "TransactionType" NOT NULL,
+    "itemId" TEXT NOT NULL,
+    "warehouseId" TEXT NOT NULL,
+    "quantity" DOUBLE PRECISION NOT NULL,
+    "unitPrice" DECIMAL(10,2),
+    "totalValue" DECIMAL(12,2),
+    "referenceNo" TEXT,
+    "remarks" TEXT,
+    "entryMethod" "EntryMethod" NOT NULL DEFAULT 'MANUAL',
+    "entryStartTime" TIMESTAMP(3),
+    "entryEndTime" TIMESTAMP(3),
+    "entryDuration" INTEGER,
+    "idempotencyKey" TEXT,
+    "grnId" TEXT,
+    "ginId" TEXT,
+    "createdById" TEXT NOT NULL,
+    "approvedById" TEXT,
+    "approvedAt" TIMESTAMP(3),
+    "status" "EntryStatus" NOT NULL DEFAULT 'PENDING',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "StockEntry_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "StockTransfer" (
+    "id" TEXT NOT NULL,
+    "transferNo" TEXT NOT NULL,
+    "fromWarehouseId" TEXT NOT NULL,
+    "toWarehouseId" TEXT NOT NULL,
+    "status" "TransferStatus" NOT NULL DEFAULT 'DRAFT',
+    "requestedById" TEXT NOT NULL,
+    "approvedById" TEXT,
+    "approvedAt" TIMESTAMP(3),
+    "shippedAt" TIMESTAMP(3),
+    "receivedAt" TIMESTAMP(3),
+    "remarks" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "StockTransfer_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "TransferLine" (
+    "id" TEXT NOT NULL,
+    "transferId" TEXT NOT NULL,
+    "itemId" TEXT NOT NULL,
+    "quantity" DOUBLE PRECISION NOT NULL,
+    "fromBinId" TEXT,
+    "toBinId" TEXT,
+
+    CONSTRAINT "TransferLine_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "PhysicalCountCycle" (
+    "id" TEXT NOT NULL,
+    "cycleNo" TEXT NOT NULL,
+    "warehouseId" TEXT NOT NULL,
+    "conductedById" TEXT NOT NULL,
+    "approvedById" TEXT,
+    "status" "CountStatus" NOT NULL DEFAULT 'PLANNED',
+    "startedAt" TIMESTAMP(3),
+    "completedAt" TIMESTAMP(3),
+    "approvedAt" TIMESTAMP(3),
+    "remarks" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "PhysicalCountCycle_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "PhysicalCountLine" (
+    "id" TEXT NOT NULL,
+    "cycleId" TEXT NOT NULL,
+    "itemId" TEXT NOT NULL,
+    "binLocationId" TEXT,
+    "expectedQty" DOUBLE PRECISION NOT NULL,
+    "countedQty" DOUBLE PRECISION,
+    "variance" DOUBLE PRECISION,
+    "isBlind" BOOLEAN NOT NULL DEFAULT true,
+    "recountedQty" DOUBLE PRECISION,
+    "notes" TEXT,
+
+    CONSTRAINT "PhysicalCountLine_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "DamageReport" (
+    "id" TEXT NOT NULL,
+    "reportNo" TEXT NOT NULL,
+    "warehouseId" TEXT NOT NULL,
+    "reportedById" TEXT NOT NULL,
+    "approvedById" TEXT,
+    "status" "DamageStatus" NOT NULL DEFAULT 'DRAFT',
+    "totalCost" DECIMAL(12,2) NOT NULL DEFAULT 0,
+    "incidentDate" TIMESTAMP(3),
+    "remarks" TEXT,
+    "approvedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "DamageReport_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "DamageReportLine" (
+    "id" TEXT NOT NULL,
+    "damageReportId" TEXT NOT NULL,
+    "itemId" TEXT NOT NULL,
+    "quantity" DOUBLE PRECISION NOT NULL,
+    "reason" TEXT NOT NULL,
+    "costImpact" DECIMAL(12,2) NOT NULL,
+    "images" JSONB,
+
+    CONSTRAINT "DamageReportLine_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "KPIRecord" (
+    "id" TEXT NOT NULL,
+    "warehouseId" TEXT NOT NULL,
+    "recordDate" TIMESTAMP(3) NOT NULL,
+    "month" INTEGER NOT NULL,
+    "year" INTEGER NOT NULL,
+    "inventoryAccuracy" DOUBLE PRECISION NOT NULL,
+    "avgEntryTime" DOUBLE PRECISION NOT NULL,
+    "orderFulfillmentRate" DOUBLE PRECISION NOT NULL,
+    "stockTurnoverRate" DOUBLE PRECISION NOT NULL,
+    "staffProductivity" DOUBLE PRECISION NOT NULL,
+    "shrinkageRate" DOUBLE PRECISION NOT NULL,
+    "pickingEfficiency" DOUBLE PRECISION NOT NULL,
+    "totalTransactions" INTEGER NOT NULL,
+    "totalErrors" INTEGER NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "KPIRecord_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Report" (
+    "id" TEXT NOT NULL,
+    "reportNo" TEXT NOT NULL,
+    "type" "ReportType" NOT NULL,
+    "titleEn" TEXT NOT NULL,
+    "titleSi" TEXT NOT NULL,
+    "warehouseId" TEXT NOT NULL,
+    "fromDate" TIMESTAMP(3) NOT NULL,
+    "toDate" TIMESTAMP(3) NOT NULL,
+    "generatedById" TEXT NOT NULL,
+    "fileUrl" TEXT,
+    "metadata" JSONB,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "Report_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Task" (
+    "id" TEXT NOT NULL,
+    "titleEn" TEXT NOT NULL,
+    "titleSi" TEXT NOT NULL,
+    "assignedToId" TEXT NOT NULL,
+    "taskType" "TaskType" NOT NULL,
+    "dueDate" TIMESTAMP(3) NOT NULL,
+    "completedAt" TIMESTAMP(3),
+    "status" "TaskStatus" NOT NULL DEFAULT 'PENDING',
+    "priority" "Priority" NOT NULL DEFAULT 'MEDIUM',
+    "notes" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Task_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "AuditLog" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "action" TEXT NOT NULL,
+    "module" TEXT NOT NULL,
+    "details" JSONB NOT NULL,
+    "correlationId" TEXT,
+    "userAgent" TEXT,
+    "beforeSnapshot" JSONB,
+    "afterSnapshot" JSONB,
+    "ipAddress" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "AuditLog_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Notification" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "titleEn" TEXT NOT NULL,
+    "titleSi" TEXT NOT NULL,
+    "message" TEXT NOT NULL,
+    "type" "NotifType" NOT NULL,
+    "isRead" BOOLEAN NOT NULL DEFAULT false,
+    "link" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "Notification_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Attachment" (
+    "id" TEXT NOT NULL,
+    "entityType" TEXT NOT NULL,
+    "entityId" TEXT NOT NULL,
+    "url" TEXT NOT NULL,
+    "publicId" TEXT,
+    "mimeType" TEXT NOT NULL,
+    "sizeBytes" INTEGER NOT NULL,
+    "fileName" TEXT,
+    "uploadedBy" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "Attachment_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "WebhookDelivery" (
+    "id" TEXT NOT NULL,
+    "event" TEXT NOT NULL,
+    "payload" JSONB NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'PENDING',
+    "attempts" INTEGER NOT NULL DEFAULT 0,
+    "lastAttemptAt" TIMESTAMP(3),
+    "nextRetryAt" TIMESTAMP(3),
+    "responseCode" INTEGER,
+    "responseBody" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "WebhookDelivery_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE UNIQUE INDEX "User_employeeId_key" ON "User"("employeeId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
+
+-- CreateIndex
+CREATE INDEX "User_role_idx" ON "User"("role");
+
+-- CreateIndex
+CREATE INDEX "User_warehouseId_idx" ON "User"("warehouseId");
+
+-- CreateIndex
+CREATE INDEX "User_isActive_idx" ON "User"("isActive");
+
+-- CreateIndex
+CREATE INDEX "User_deletedAt_idx" ON "User"("deletedAt");
+
+-- CreateIndex
+CREATE INDEX "Account_userId_idx" ON "Account"("userId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Account_provider_providerAccountId_key" ON "Account"("provider", "providerAccountId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Session_sessionToken_key" ON "Session"("sessionToken");
+
+-- CreateIndex
+CREATE INDEX "Session_userId_idx" ON "Session"("userId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "VerificationToken_token_key" ON "VerificationToken"("token");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "VerificationToken_identifier_token_key" ON "VerificationToken"("identifier", "token");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "PasswordResetToken_token_key" ON "PasswordResetToken"("token");
+
+-- CreateIndex
+CREATE INDEX "PasswordResetToken_userId_idx" ON "PasswordResetToken"("userId");
+
+-- CreateIndex
+CREATE INDEX "PasswordResetToken_expiresAt_idx" ON "PasswordResetToken"("expiresAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Warehouse_code_key" ON "Warehouse"("code");
+
+-- CreateIndex
+CREATE INDEX "Warehouse_isActive_idx" ON "Warehouse"("isActive");
+
+-- CreateIndex
+CREATE INDEX "Warehouse_district_idx" ON "Warehouse"("district");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Category_code_key" ON "Category"("code");
+
+-- CreateIndex
+CREATE INDEX "Category_nameEn_idx" ON "Category"("nameEn");
+
+-- CreateIndex
+CREATE INDEX "Category_nameSi_idx" ON "Category"("nameSi");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Supplier_code_key" ON "Supplier"("code");
+
+-- CreateIndex
+CREATE INDEX "Supplier_isActive_idx" ON "Supplier"("isActive");
+
+-- CreateIndex
+CREATE INDEX "Supplier_nameEn_idx" ON "Supplier"("nameEn");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Item_itemCode_key" ON "Item"("itemCode");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Item_barcode_key" ON "Item"("barcode");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Item_rfidTag_key" ON "Item"("rfidTag");
+
+-- CreateIndex
+CREATE INDEX "Item_isActive_warehouseId_idx" ON "Item"("isActive", "warehouseId");
+
+-- CreateIndex
+CREATE INDEX "Item_warehouseId_idx" ON "Item"("warehouseId");
+
+-- CreateIndex
+CREATE INDEX "Item_categoryId_idx" ON "Item"("categoryId");
+
+-- CreateIndex
+CREATE INDEX "Item_supplierId_idx" ON "Item"("supplierId");
+
+-- CreateIndex
+CREATE INDEX "Item_barcode_idx" ON "Item"("barcode");
+
+-- CreateIndex
+CREATE INDEX "Item_nameEn_idx" ON "Item"("nameEn");
+
+-- CreateIndex
+CREATE INDEX "Item_nameSi_idx" ON "Item"("nameSi");
+
+-- CreateIndex
+CREATE INDEX "Item_deletedAt_idx" ON "Item"("deletedAt");
+
+-- CreateIndex
+CREATE INDEX "Zone_warehouseId_idx" ON "Zone"("warehouseId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Zone_warehouseId_code_key" ON "Zone"("warehouseId", "code");
+
+-- CreateIndex
+CREATE INDEX "BinLocation_warehouseId_idx" ON "BinLocation"("warehouseId");
+
+-- CreateIndex
+CREATE INDEX "BinLocation_zoneId_idx" ON "BinLocation"("zoneId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "BinLocation_warehouseId_code_key" ON "BinLocation"("warehouseId", "code");
+
+-- CreateIndex
+CREATE INDEX "LotBatch_itemId_idx" ON "LotBatch"("itemId");
+
+-- CreateIndex
+CREATE INDEX "LotBatch_expiryDate_idx" ON "LotBatch"("expiryDate");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "LotBatch_itemId_batchNo_key" ON "LotBatch"("itemId", "batchNo");
+
+-- CreateIndex
+CREATE INDEX "Inventory_warehouseId_idx" ON "Inventory"("warehouseId");
+
+-- CreateIndex
+CREATE INDEX "Inventory_itemId_idx" ON "Inventory"("itemId");
+
+-- CreateIndex
+CREATE INDEX "Inventory_binLocationId_idx" ON "Inventory"("binLocationId");
+
+-- CreateIndex
+CREATE INDEX "Inventory_lotBatchId_idx" ON "Inventory"("lotBatchId");
+
+-- CreateIndex
+CREATE INDEX "Inventory_currentStock_idx" ON "Inventory"("currentStock");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Inventory_itemId_warehouseId_key" ON "Inventory"("itemId", "warehouseId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "PurchaseOrder_poNo_key" ON "PurchaseOrder"("poNo");
+
+-- CreateIndex
+CREATE INDEX "PurchaseOrder_supplierId_idx" ON "PurchaseOrder"("supplierId");
+
+-- CreateIndex
+CREATE INDEX "PurchaseOrder_warehouseId_idx" ON "PurchaseOrder"("warehouseId");
+
+-- CreateIndex
+CREATE INDEX "PurchaseOrder_status_idx" ON "PurchaseOrder"("status");
+
+-- CreateIndex
+CREATE INDEX "PurchaseOrder_status_warehouseId_idx" ON "PurchaseOrder"("status", "warehouseId");
+
+-- CreateIndex
+CREATE INDEX "PurchaseOrder_expectedDate_idx" ON "PurchaseOrder"("expectedDate");
+
+-- CreateIndex
+CREATE INDEX "POLine_poId_idx" ON "POLine"("poId");
+
+-- CreateIndex
+CREATE INDEX "POLine_itemId_idx" ON "POLine"("itemId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "GoodsReceiptNote_grnNo_key" ON "GoodsReceiptNote"("grnNo");
+
+-- CreateIndex
+CREATE INDEX "GoodsReceiptNote_supplierId_idx" ON "GoodsReceiptNote"("supplierId");
+
+-- CreateIndex
+CREATE INDEX "GoodsReceiptNote_warehouseId_idx" ON "GoodsReceiptNote"("warehouseId");
+
+-- CreateIndex
+CREATE INDEX "GoodsReceiptNote_poId_idx" ON "GoodsReceiptNote"("poId");
+
+-- CreateIndex
+CREATE INDEX "GoodsReceiptNote_status_idx" ON "GoodsReceiptNote"("status");
+
+-- CreateIndex
+CREATE INDEX "GoodsReceiptNote_status_warehouseId_idx" ON "GoodsReceiptNote"("status", "warehouseId");
+
+-- CreateIndex
+CREATE INDEX "GoodsReceiptNote_createdAt_idx" ON "GoodsReceiptNote"("createdAt");
+
+-- CreateIndex
+CREATE INDEX "GRNLine_grnId_idx" ON "GRNLine"("grnId");
+
+-- CreateIndex
+CREATE INDEX "GRNLine_itemId_idx" ON "GRNLine"("itemId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Requisition_reqNo_key" ON "Requisition"("reqNo");
+
+-- CreateIndex
+CREATE INDEX "Requisition_warehouseId_idx" ON "Requisition"("warehouseId");
+
+-- CreateIndex
+CREATE INDEX "Requisition_status_idx" ON "Requisition"("status");
+
+-- CreateIndex
+CREATE INDEX "Requisition_status_warehouseId_idx" ON "Requisition"("status", "warehouseId");
+
+-- CreateIndex
+CREATE INDEX "Requisition_priority_idx" ON "Requisition"("priority");
+
+-- CreateIndex
+CREATE INDEX "Requisition_createdAt_idx" ON "Requisition"("createdAt");
+
+-- CreateIndex
+CREATE INDEX "RequisitionLine_requisitionId_idx" ON "RequisitionLine"("requisitionId");
+
+-- CreateIndex
+CREATE INDEX "RequisitionLine_itemId_idx" ON "RequisitionLine"("itemId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "GoodsIssueNote_ginNo_key" ON "GoodsIssueNote"("ginNo");
+
+-- CreateIndex
+CREATE INDEX "GoodsIssueNote_requisitionId_idx" ON "GoodsIssueNote"("requisitionId");
+
+-- CreateIndex
+CREATE INDEX "GoodsIssueNote_warehouseId_idx" ON "GoodsIssueNote"("warehouseId");
+
+-- CreateIndex
+CREATE INDEX "GoodsIssueNote_issuedToId_idx" ON "GoodsIssueNote"("issuedToId");
+
+-- CreateIndex
+CREATE INDEX "GoodsIssueNote_status_idx" ON "GoodsIssueNote"("status");
+
+-- CreateIndex
+CREATE INDEX "GoodsIssueNote_status_warehouseId_idx" ON "GoodsIssueNote"("status", "warehouseId");
+
+-- CreateIndex
+CREATE INDEX "GoodsIssueNote_createdAt_idx" ON "GoodsIssueNote"("createdAt");
+
+-- CreateIndex
+CREATE INDEX "GINLine_ginId_idx" ON "GINLine"("ginId");
+
+-- CreateIndex
+CREATE INDEX "GINLine_itemId_idx" ON "GINLine"("itemId");
+
+-- CreateIndex
+CREATE INDEX "GINLine_binLocationId_idx" ON "GINLine"("binLocationId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "StockEntry_entryNumber_key" ON "StockEntry"("entryNumber");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "StockEntry_idempotencyKey_key" ON "StockEntry"("idempotencyKey");
+
+-- CreateIndex
+CREATE INDEX "StockEntry_warehouseId_createdAt_idx" ON "StockEntry"("warehouseId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "StockEntry_status_warehouseId_idx" ON "StockEntry"("status", "warehouseId");
+
+-- CreateIndex
+CREATE INDEX "StockEntry_itemId_idx" ON "StockEntry"("itemId");
+
+-- CreateIndex
+CREATE INDEX "StockEntry_createdById_idx" ON "StockEntry"("createdById");
+
+-- CreateIndex
+CREATE INDEX "StockEntry_type_idx" ON "StockEntry"("type");
+
+-- CreateIndex
+CREATE INDEX "StockEntry_grnId_idx" ON "StockEntry"("grnId");
+
+-- CreateIndex
+CREATE INDEX "StockEntry_ginId_idx" ON "StockEntry"("ginId");
+
+-- CreateIndex
+CREATE INDEX "StockEntry_createdAt_idx" ON "StockEntry"("createdAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "StockTransfer_transferNo_key" ON "StockTransfer"("transferNo");
+
+-- CreateIndex
+CREATE INDEX "StockTransfer_fromWarehouseId_idx" ON "StockTransfer"("fromWarehouseId");
+
+-- CreateIndex
+CREATE INDEX "StockTransfer_toWarehouseId_idx" ON "StockTransfer"("toWarehouseId");
+
+-- CreateIndex
+CREATE INDEX "StockTransfer_status_idx" ON "StockTransfer"("status");
+
+-- CreateIndex
+CREATE INDEX "StockTransfer_status_fromWarehouseId_idx" ON "StockTransfer"("status", "fromWarehouseId");
+
+-- CreateIndex
+CREATE INDEX "StockTransfer_createdAt_idx" ON "StockTransfer"("createdAt");
+
+-- CreateIndex
+CREATE INDEX "TransferLine_transferId_idx" ON "TransferLine"("transferId");
+
+-- CreateIndex
+CREATE INDEX "TransferLine_itemId_idx" ON "TransferLine"("itemId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "PhysicalCountCycle_cycleNo_key" ON "PhysicalCountCycle"("cycleNo");
+
+-- CreateIndex
+CREATE INDEX "PhysicalCountCycle_warehouseId_idx" ON "PhysicalCountCycle"("warehouseId");
+
+-- CreateIndex
+CREATE INDEX "PhysicalCountCycle_status_idx" ON "PhysicalCountCycle"("status");
+
+-- CreateIndex
+CREATE INDEX "PhysicalCountCycle_status_warehouseId_idx" ON "PhysicalCountCycle"("status", "warehouseId");
+
+-- CreateIndex
+CREATE INDEX "PhysicalCountCycle_conductedById_idx" ON "PhysicalCountCycle"("conductedById");
+
+-- CreateIndex
+CREATE INDEX "PhysicalCountLine_cycleId_idx" ON "PhysicalCountLine"("cycleId");
+
+-- CreateIndex
+CREATE INDEX "PhysicalCountLine_itemId_idx" ON "PhysicalCountLine"("itemId");
+
+-- CreateIndex
+CREATE INDEX "PhysicalCountLine_binLocationId_idx" ON "PhysicalCountLine"("binLocationId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "DamageReport_reportNo_key" ON "DamageReport"("reportNo");
+
+-- CreateIndex
+CREATE INDEX "DamageReport_warehouseId_idx" ON "DamageReport"("warehouseId");
+
+-- CreateIndex
+CREATE INDEX "DamageReport_status_idx" ON "DamageReport"("status");
+
+-- CreateIndex
+CREATE INDEX "DamageReport_status_warehouseId_idx" ON "DamageReport"("status", "warehouseId");
+
+-- CreateIndex
+CREATE INDEX "DamageReport_reportedById_idx" ON "DamageReport"("reportedById");
+
+-- CreateIndex
+CREATE INDEX "DamageReport_createdAt_idx" ON "DamageReport"("createdAt");
+
+-- CreateIndex
+CREATE INDEX "DamageReportLine_damageReportId_idx" ON "DamageReportLine"("damageReportId");
+
+-- CreateIndex
+CREATE INDEX "DamageReportLine_itemId_idx" ON "DamageReportLine"("itemId");
+
+-- CreateIndex
+CREATE INDEX "KPIRecord_warehouseId_idx" ON "KPIRecord"("warehouseId");
+
+-- CreateIndex
+CREATE INDEX "KPIRecord_year_month_idx" ON "KPIRecord"("year", "month");
+
+-- CreateIndex
+CREATE INDEX "KPIRecord_recordDate_idx" ON "KPIRecord"("recordDate");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "KPIRecord_warehouseId_month_year_key" ON "KPIRecord"("warehouseId", "month", "year");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Report_reportNo_key" ON "Report"("reportNo");
+
+-- CreateIndex
+CREATE INDEX "Report_warehouseId_idx" ON "Report"("warehouseId");
+
+-- CreateIndex
+CREATE INDEX "Report_type_idx" ON "Report"("type");
+
+-- CreateIndex
+CREATE INDEX "Report_type_warehouseId_idx" ON "Report"("type", "warehouseId");
+
+-- CreateIndex
+CREATE INDEX "Report_createdAt_idx" ON "Report"("createdAt");
+
+-- CreateIndex
+CREATE INDEX "Report_fromDate_toDate_idx" ON "Report"("fromDate", "toDate");
+
+-- CreateIndex
+CREATE INDEX "Task_assignedToId_status_idx" ON "Task"("assignedToId", "status");
+
+-- CreateIndex
+CREATE INDEX "Task_status_idx" ON "Task"("status");
+
+-- CreateIndex
+CREATE INDEX "Task_dueDate_idx" ON "Task"("dueDate");
+
+-- CreateIndex
+CREATE INDEX "Task_priority_idx" ON "Task"("priority");
+
+-- CreateIndex
+CREATE INDEX "AuditLog_userId_createdAt_idx" ON "AuditLog"("userId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "AuditLog_module_createdAt_idx" ON "AuditLog"("module", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "AuditLog_correlationId_idx" ON "AuditLog"("correlationId");
+
+-- CreateIndex
+CREATE INDEX "AuditLog_createdAt_idx" ON "AuditLog"("createdAt");
+
+-- CreateIndex
+CREATE INDEX "Notification_userId_isRead_idx" ON "Notification"("userId", "isRead");
+
+-- CreateIndex
+CREATE INDEX "Notification_userId_createdAt_idx" ON "Notification"("userId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "Notification_type_idx" ON "Notification"("type");
+
+-- CreateIndex
+CREATE INDEX "Attachment_entityType_entityId_idx" ON "Attachment"("entityType", "entityId");
+
+-- CreateIndex
+CREATE INDEX "Attachment_createdAt_idx" ON "Attachment"("createdAt");
+
+-- CreateIndex
+CREATE INDEX "WebhookDelivery_status_idx" ON "WebhookDelivery"("status");
+
+-- CreateIndex
+CREATE INDEX "WebhookDelivery_event_idx" ON "WebhookDelivery"("event");
+
+-- CreateIndex
+CREATE INDEX "WebhookDelivery_nextRetryAt_idx" ON "WebhookDelivery"("nextRetryAt");
+
+-- CreateIndex
+CREATE INDEX "WebhookDelivery_createdAt_idx" ON "WebhookDelivery"("createdAt");
+
+-- AddForeignKey
+ALTER TABLE "User" ADD CONSTRAINT "User_warehouseId_fkey" FOREIGN KEY ("warehouseId") REFERENCES "Warehouse"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Account" ADD CONSTRAINT "Account_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Session" ADD CONSTRAINT "Session_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PasswordResetToken" ADD CONSTRAINT "PasswordResetToken_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Item" ADD CONSTRAINT "Item_categoryId_fkey" FOREIGN KEY ("categoryId") REFERENCES "Category"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Item" ADD CONSTRAINT "Item_warehouseId_fkey" FOREIGN KEY ("warehouseId") REFERENCES "Warehouse"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Item" ADD CONSTRAINT "Item_supplierId_fkey" FOREIGN KEY ("supplierId") REFERENCES "Supplier"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Item" ADD CONSTRAINT "Item_deletedById_fkey" FOREIGN KEY ("deletedById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Zone" ADD CONSTRAINT "Zone_warehouseId_fkey" FOREIGN KEY ("warehouseId") REFERENCES "Warehouse"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "BinLocation" ADD CONSTRAINT "BinLocation_zoneId_fkey" FOREIGN KEY ("zoneId") REFERENCES "Zone"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "BinLocation" ADD CONSTRAINT "BinLocation_warehouseId_fkey" FOREIGN KEY ("warehouseId") REFERENCES "Warehouse"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "LotBatch" ADD CONSTRAINT "LotBatch_itemId_fkey" FOREIGN KEY ("itemId") REFERENCES "Item"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Inventory" ADD CONSTRAINT "Inventory_itemId_fkey" FOREIGN KEY ("itemId") REFERENCES "Item"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Inventory" ADD CONSTRAINT "Inventory_warehouseId_fkey" FOREIGN KEY ("warehouseId") REFERENCES "Warehouse"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Inventory" ADD CONSTRAINT "Inventory_binLocationId_fkey" FOREIGN KEY ("binLocationId") REFERENCES "BinLocation"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Inventory" ADD CONSTRAINT "Inventory_lotBatchId_fkey" FOREIGN KEY ("lotBatchId") REFERENCES "LotBatch"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PurchaseOrder" ADD CONSTRAINT "PurchaseOrder_supplierId_fkey" FOREIGN KEY ("supplierId") REFERENCES "Supplier"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PurchaseOrder" ADD CONSTRAINT "PurchaseOrder_warehouseId_fkey" FOREIGN KEY ("warehouseId") REFERENCES "Warehouse"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PurchaseOrder" ADD CONSTRAINT "PurchaseOrder_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PurchaseOrder" ADD CONSTRAINT "PurchaseOrder_approvedById_fkey" FOREIGN KEY ("approvedById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "POLine" ADD CONSTRAINT "POLine_poId_fkey" FOREIGN KEY ("poId") REFERENCES "PurchaseOrder"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "POLine" ADD CONSTRAINT "POLine_itemId_fkey" FOREIGN KEY ("itemId") REFERENCES "Item"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "GoodsReceiptNote" ADD CONSTRAINT "GoodsReceiptNote_supplierId_fkey" FOREIGN KEY ("supplierId") REFERENCES "Supplier"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "GoodsReceiptNote" ADD CONSTRAINT "GoodsReceiptNote_poId_fkey" FOREIGN KEY ("poId") REFERENCES "PurchaseOrder"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "GoodsReceiptNote" ADD CONSTRAINT "GoodsReceiptNote_warehouseId_fkey" FOREIGN KEY ("warehouseId") REFERENCES "Warehouse"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "GoodsReceiptNote" ADD CONSTRAINT "GoodsReceiptNote_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "GoodsReceiptNote" ADD CONSTRAINT "GoodsReceiptNote_approverId_fkey" FOREIGN KEY ("approverId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "GRNLine" ADD CONSTRAINT "GRNLine_grnId_fkey" FOREIGN KEY ("grnId") REFERENCES "GoodsReceiptNote"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "GRNLine" ADD CONSTRAINT "GRNLine_itemId_fkey" FOREIGN KEY ("itemId") REFERENCES "Item"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "GRNLine" ADD CONSTRAINT "GRNLine_lotBatchId_fkey" FOREIGN KEY ("lotBatchId") REFERENCES "LotBatch"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Requisition" ADD CONSTRAINT "Requisition_warehouseId_fkey" FOREIGN KEY ("warehouseId") REFERENCES "Warehouse"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Requisition" ADD CONSTRAINT "Requisition_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Requisition" ADD CONSTRAINT "Requisition_approvedById_fkey" FOREIGN KEY ("approvedById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "RequisitionLine" ADD CONSTRAINT "RequisitionLine_requisitionId_fkey" FOREIGN KEY ("requisitionId") REFERENCES "Requisition"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "RequisitionLine" ADD CONSTRAINT "RequisitionLine_itemId_fkey" FOREIGN KEY ("itemId") REFERENCES "Item"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "GoodsIssueNote" ADD CONSTRAINT "GoodsIssueNote_requisitionId_fkey" FOREIGN KEY ("requisitionId") REFERENCES "Requisition"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "GoodsIssueNote" ADD CONSTRAINT "GoodsIssueNote_issuedToId_fkey" FOREIGN KEY ("issuedToId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "GoodsIssueNote" ADD CONSTRAINT "GoodsIssueNote_warehouseId_fkey" FOREIGN KEY ("warehouseId") REFERENCES "Warehouse"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "GoodsIssueNote" ADD CONSTRAINT "GoodsIssueNote_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "GoodsIssueNote" ADD CONSTRAINT "GoodsIssueNote_approverId_fkey" FOREIGN KEY ("approverId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "GINLine" ADD CONSTRAINT "GINLine_ginId_fkey" FOREIGN KEY ("ginId") REFERENCES "GoodsIssueNote"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "GINLine" ADD CONSTRAINT "GINLine_itemId_fkey" FOREIGN KEY ("itemId") REFERENCES "Item"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "GINLine" ADD CONSTRAINT "GINLine_binLocationId_fkey" FOREIGN KEY ("binLocationId") REFERENCES "BinLocation"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "StockEntry" ADD CONSTRAINT "StockEntry_itemId_fkey" FOREIGN KEY ("itemId") REFERENCES "Item"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "StockEntry" ADD CONSTRAINT "StockEntry_warehouseId_fkey" FOREIGN KEY ("warehouseId") REFERENCES "Warehouse"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "StockEntry" ADD CONSTRAINT "StockEntry_grnId_fkey" FOREIGN KEY ("grnId") REFERENCES "GoodsReceiptNote"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "StockEntry" ADD CONSTRAINT "StockEntry_ginId_fkey" FOREIGN KEY ("ginId") REFERENCES "GoodsIssueNote"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "StockEntry" ADD CONSTRAINT "StockEntry_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "StockEntry" ADD CONSTRAINT "StockEntry_approvedById_fkey" FOREIGN KEY ("approvedById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "StockTransfer" ADD CONSTRAINT "StockTransfer_fromWarehouseId_fkey" FOREIGN KEY ("fromWarehouseId") REFERENCES "Warehouse"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "StockTransfer" ADD CONSTRAINT "StockTransfer_toWarehouseId_fkey" FOREIGN KEY ("toWarehouseId") REFERENCES "Warehouse"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "StockTransfer" ADD CONSTRAINT "StockTransfer_requestedById_fkey" FOREIGN KEY ("requestedById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "StockTransfer" ADD CONSTRAINT "StockTransfer_approvedById_fkey" FOREIGN KEY ("approvedById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "TransferLine" ADD CONSTRAINT "TransferLine_transferId_fkey" FOREIGN KEY ("transferId") REFERENCES "StockTransfer"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "TransferLine" ADD CONSTRAINT "TransferLine_itemId_fkey" FOREIGN KEY ("itemId") REFERENCES "Item"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "TransferLine" ADD CONSTRAINT "TransferLine_fromBinId_fkey" FOREIGN KEY ("fromBinId") REFERENCES "BinLocation"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "TransferLine" ADD CONSTRAINT "TransferLine_toBinId_fkey" FOREIGN KEY ("toBinId") REFERENCES "BinLocation"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PhysicalCountCycle" ADD CONSTRAINT "PhysicalCountCycle_warehouseId_fkey" FOREIGN KEY ("warehouseId") REFERENCES "Warehouse"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PhysicalCountCycle" ADD CONSTRAINT "PhysicalCountCycle_conductedById_fkey" FOREIGN KEY ("conductedById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PhysicalCountCycle" ADD CONSTRAINT "PhysicalCountCycle_approvedById_fkey" FOREIGN KEY ("approvedById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PhysicalCountLine" ADD CONSTRAINT "PhysicalCountLine_cycleId_fkey" FOREIGN KEY ("cycleId") REFERENCES "PhysicalCountCycle"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PhysicalCountLine" ADD CONSTRAINT "PhysicalCountLine_itemId_fkey" FOREIGN KEY ("itemId") REFERENCES "Item"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PhysicalCountLine" ADD CONSTRAINT "PhysicalCountLine_binLocationId_fkey" FOREIGN KEY ("binLocationId") REFERENCES "BinLocation"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "DamageReport" ADD CONSTRAINT "DamageReport_warehouseId_fkey" FOREIGN KEY ("warehouseId") REFERENCES "Warehouse"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "DamageReport" ADD CONSTRAINT "DamageReport_reportedById_fkey" FOREIGN KEY ("reportedById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "DamageReport" ADD CONSTRAINT "DamageReport_approvedById_fkey" FOREIGN KEY ("approvedById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "DamageReportLine" ADD CONSTRAINT "DamageReportLine_damageReportId_fkey" FOREIGN KEY ("damageReportId") REFERENCES "DamageReport"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "DamageReportLine" ADD CONSTRAINT "DamageReportLine_itemId_fkey" FOREIGN KEY ("itemId") REFERENCES "Item"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "KPIRecord" ADD CONSTRAINT "KPIRecord_warehouseId_fkey" FOREIGN KEY ("warehouseId") REFERENCES "Warehouse"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Report" ADD CONSTRAINT "Report_warehouseId_fkey" FOREIGN KEY ("warehouseId") REFERENCES "Warehouse"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Report" ADD CONSTRAINT "Report_generatedById_fkey" FOREIGN KEY ("generatedById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Task" ADD CONSTRAINT "Task_assignedToId_fkey" FOREIGN KEY ("assignedToId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "AuditLog" ADD CONSTRAINT "AuditLog_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Notification" ADD CONSTRAINT "Notification_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+
+-- >>> migrations/20250601000002_trgm_indexes.sql
+-- IrrWMS Supabase migration 02: trigram search indexes
+
+CREATE INDEX IF NOT EXISTS "Item_nameEn_trgm_idx"
+  ON "Item" USING gin ("nameEn" gin_trgm_ops);
+
+CREATE INDEX IF NOT EXISTS "Item_nameSi_trgm_idx"
+  ON "Item" USING gin ("nameSi" gin_trgm_ops);
+
+CREATE INDEX IF NOT EXISTS "Category_nameEn_trgm_idx"
+  ON "Category" USING gin ("nameEn" gin_trgm_ops);
+
+CREATE INDEX IF NOT EXISTS "Category_nameSi_trgm_idx"
+  ON "Category" USING gin ("nameSi" gin_trgm_ops);
+
+CREATE INDEX IF NOT EXISTS "Supplier_nameEn_trgm_idx"
+  ON "Supplier" USING gin ("nameEn" gin_trgm_ops);
+
+-- >>> migrations/20250601000003_rls_hardening.sql
+-- IrrWMS Supabase migration 03: RLS hardening
+-- IrrWMS uses Prisma + NextAuth with DATABASE_URL (postgres role), NOT Supabase Auth / PostgREST.
+-- Enable RLS so anon/authenticated API roles cannot read warehouse data via the Data API.
+
+DO $$
+DECLARE
+  tbl text;
+BEGIN
+  FOR tbl IN
+    SELECT unnest(ARRAY[
+      'User', 'Account', 'Session', 'VerificationToken', 'PasswordResetToken',
+      'Warehouse', 'Category', 'Supplier', 'Item', 'Zone', 'BinLocation', 'LotBatch',
+      'Inventory', 'PurchaseOrder', 'POLine', 'GoodsReceiptNote', 'GRNLine',
+      'Requisition', 'RequisitionLine', 'GoodsIssueNote', 'GINLine',
+      'StockEntry', 'StockTransfer', 'TransferLine',
+      'PhysicalCountCycle', 'PhysicalCountLine', 'DamageReport', 'DamageReportLine',
+      'KPIRecord', 'Report', 'Task', 'AuditLog', 'Notification',
+      'Attachment', 'WebhookDelivery'
+    ])
+  LOOP
+    EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', tbl);
+  END LOOP;
+END $$;
+
+-- No policies for anon/authenticated → deny all via Supabase Data API.
+-- The application connection (postgres / service role) bypasses RLS as usual.
+
+REVOKE ALL ON ALL TABLES IN SCHEMA public FROM anon, authenticated;
+REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM anon, authenticated;
+REVOKE ALL ON ALL ROUTINES IN SCHEMA public FROM anon, authenticated;
+

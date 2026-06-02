@@ -70,7 +70,7 @@ export function LoginForm() {
       className="w-full max-w-md"
     >
       <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/95 shadow-2xl shadow-black/30 backdrop-blur-sm dark:bg-[#252545]/95">
-        <div className="bg-primary px-8 py-7 text-primary-foreground">
+        <div className="bg-primary px-4 py-6 text-primary-foreground sm:px-8 sm:py-7">
           <div className="mb-4 flex items-start justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/15 ring-1 ring-white/20">
@@ -98,7 +98,7 @@ export function LoginForm() {
           </p>
         </div>
 
-        <div className="px-8 py-8">
+        <div className="px-4 py-6 sm:px-8 sm:py-8">
           <div className="mb-6">
             <h2 className="text-xl font-semibold text-foreground">
               {t("Welcome back", "නැවත සාදරයෙන් පිළිගනිමු")}

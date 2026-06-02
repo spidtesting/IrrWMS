@@ -13,6 +13,7 @@ concurrency:
 env:
   SKIP_ENV_VALIDATION: "true"
   DATABASE_URL: postgresql://irrwms:irrwms_secret@localhost:5432/irrwms?schema=public
+  DIRECT_URL: postgresql://irrwms:irrwms_secret@localhost:5432/irrwms?schema=public
   NEXTAUTH_SECRET: ci-test-secret-minimum-32-characters-long
   NEXTAUTH_URL: http://localhost:3000
   REDIS_URL: redis://localhost:6379

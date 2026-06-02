@@ -51,7 +51,7 @@ export function KanbanBoard({ tasks, onStatusChange }: KanbanBoardProps) {
 
   return (
     <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {COLUMNS.map((status) => (
           <KanbanColumn
             key={status}

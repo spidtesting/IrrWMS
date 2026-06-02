@@ -8,8 +8,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -985,13 +986,5 @@ model WebhookDelivery {
   @@index([createdAt])
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Trigram full-text search (apply via raw SQL migration after enabling pg_trgm):
-//
-// CREATE EXTENSION IF NOT EXISTS pg_trgm;
-// CREATE INDEX "Item_nameEn_trgm_idx" ON "Item" USING gin ("nameEn" gin_trgm_ops);
-// CREATE INDEX "Item_nameSi_trgm_idx" ON "Item" USING gin ("nameSi" gin_trgm_ops);
-// CREATE INDEX "Category_nameEn_trgm_idx" ON "Category" USING gin ("nameEn" gin_trgm_ops);
-// CREATE INDEX "Category_nameSi_trgm_idx" ON "Category" USING gin ("nameSi" gin_trgm_ops);
-// CREATE INDEX "Supplier_nameEn_trgm_idx" ON "Supplier" USING gin ("nameEn" gin_trgm_ops);
-// ─────────────────────────────────────────────────────────────────────────────
+// Trigram search + RLS: see supabase/migrations/20250601000002_trgm_indexes.sql
+// and supabase/migrations/20250601000003_rls_hardening.sql (or sql/apply_in_sql_editor.sql).

@@ -5,6 +5,8 @@ export const env = createEnv({
   server: {
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
     DATABASE_URL: z.string().url().startsWith("postgresql://"),
+    /** Supabase session/direct URL (5432) — migrations & seed. Falls back to DATABASE_URL if unset. */
+    DIRECT_URL: z.string().url().startsWith("postgresql://").optional(),
     NEXTAUTH_SECRET: z.string().min(32),
     NEXTAUTH_URL: z.string().url(),
     REDIS_URL: z.string().url().optional(),
@@ -29,6 +31,7 @@ export const env = createEnv({
   runtimeEnv: {
     NODE_ENV: process.env.NODE_ENV,
     DATABASE_URL: process.env.DATABASE_URL,
+    DIRECT_URL: process.env.DIRECT_URL,
     NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,
     NEXTAUTH_URL: process.env.NEXTAUTH_URL,
     REDIS_URL: process.env.REDIS_URL,

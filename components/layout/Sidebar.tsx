@@ -78,7 +78,7 @@ export function Sidebar({ warehouseNameEn, warehouseNameSi }: SidebarProps) {
   return (
     <aside
       className={cn(
-        "hidden h-screen flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-all duration-300 md:flex",
+        "hidden h-screen flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-all duration-300 lg:flex",
         isCollapsed ? "w-[4.5rem]" : "w-64",
       )}
     >

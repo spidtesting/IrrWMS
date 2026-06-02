@@ -29,7 +29,7 @@ export default function DashboardPage() {
     <div>
       <PageHeader title={t("title")} description={t("welcome")} />
 
-      <div className="mb-8 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Card>
           <CardHeader className="pb-2">
             <CardDescription>{t("lowStockItems")}</CardDescription>
@@ -60,7 +60,7 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {quickLinks.map((link) => {
           const Icon = link.icon;
           return (
