@@ -12,22 +12,23 @@ Alternative: host the Next.js app on **Vercel** and run socket + worker on Railw
 
 ## Part 1 — Supabase database
 
-### 1. Create project
+Full step-by-step (SQL Editor migrations, RLS, Prisma sync, verification): **[supabase-setup.md](./supabase-setup.md)**.
 
-1. [supabase.com](https://supabase.com) → New project.
-2. Save the database password.
+### Quick summary
 
-### 2. Enable extensions
+1. Create a project at [supabase.com](https://supabase.com).
+2. **SQL Editor** → run [`supabase/sql/apply_in_sql_editor.sql`](../supabase/sql/apply_in_sql_editor.sql) on an empty database (or run `supabase/migrations/*.sql` in order `00` → `04`).
+3. Set `DATABASE_URL` to the **direct** URI (port `5432`) in `.env`.
+4. Local seed:
 
-In **SQL Editor**:
-
-```sql
-CREATE EXTENSION IF NOT EXISTS pg_trgm;
+```bash
+cp .env.example .env
+npm install
+npm run db:generate
+npm run db:seed
 ```
 
-### 3. Connection strings
-
-In **Project Settings → Database**:
+### Connection strings
 
 | Use case                      | Connection             | Port                                          |
 | ----------------------------- | ---------------------- | --------------------------------------------- |
@@ -35,21 +36,7 @@ In **Project Settings → Database**:
 | Railway web app (long-lived)  | Direct or Session      | `5432`                                        |
 | Vercel (serverless)           | **Transaction pooler** | `6543` + `?pgbouncer=true&connection_limit=1` |
 
-Copy the URI and set `?schema=public` if missing.
-
-### 4. Apply schema (from your laptop)
-
-```bash
-cp .env.example .env
-# Paste Supabase DIRECT URL into DATABASE_URL
-
-npm install
-npm run db:generate
-npx prisma db push          # first deploy (no migrations folder yet)
-# OR: npm run db:migrate    # after you have prisma/migrations
-
-npm run db:seed             # optional demo users (password: Admin@1234)
-```
+Copy the URI and set `?schema=public` if missing. Use `DATABASE_URL` only — not Supabase anon/service keys in the Next.js app.
 
 ---
 
