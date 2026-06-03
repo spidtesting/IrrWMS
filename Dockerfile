@@ -7,7 +7,8 @@ WORKDIR /app
 # ─── Dependencies ──────────────────────────────────────────────────────────────
 FROM base AS deps
 COPY package.json package-lock.json ./
-RUN npm ci
+# Omit optional deps (e.g. wasm @emnapi/*) — lock file is macOS-generated; Linux npm ci otherwise fails.
+RUN npm ci --omit=optional
 
 # ─── Builder ───────────────────────────────────────────────────────────────────
 FROM base AS builder
