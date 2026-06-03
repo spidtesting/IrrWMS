@@ -16,6 +16,17 @@ npm run dev
 
 Login: `admin@irrwms.gov.lk` / `Admin@1234`
 
+### Login fails with `pg_filenode.map` I/O error
+
+Local Docker Postgres data is corrupted (often after disk was full). Restart **Docker Desktop**, then:
+
+```bash
+chmod +x scripts/reset-local-db.sh
+npm run db:reset:local
+```
+
+Restart `npm run dev` and log in again.
+
 ## Supabase database (production)
 
 Project: **cakgsmzgdrsypwtmbmmw**

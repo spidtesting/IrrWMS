@@ -29,6 +29,7 @@
     "db:supabase:sync-checksum": "bash scripts/sync-prisma-checksum.sh && npm run db:supabase:bundle",
     "db:seed:remote": "bash scripts/seed-remote.sh",
     "db:supabase:apply": "bash scripts/apply-supabase-schema.sh",
+    "db:reset:local": "bash scripts/reset-local-db.sh",
     "prepare": "husky"
   },
   "prisma": {
