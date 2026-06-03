@@ -7,7 +7,9 @@ WORKDIR /app
 # ─── Dependencies ──────────────────────────────────────────────────────────────
 FROM base AS deps
 COPY package.json package-lock.json ./
-RUN npm ci
+# Skip husky git hooks in CI/Docker; lock file must match package.json (commit both together)
+ENV HUSKY=0
+RUN npm ci --ignore-scripts
 
 # ─── Builder ───────────────────────────────────────────────────────────────────
 FROM base AS builder
@@ -16,8 +18,14 @@ COPY . .
 
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
-# Build without full production secrets (set real env at runtime on Railway)
+# Build-time placeholders (override at runtime on Railway)
 ENV SKIP_ENV_VALIDATION=true
+ENV LOG_LEVEL=info
+ENV DATABASE_URL=postgresql://build:build@127.0.0.1:5432/build?schema=public
+ENV DIRECT_URL=postgresql://build:build@127.0.0.1:5432/build?schema=public
+ENV NEXTAUTH_SECRET=build-time-placeholder-secret-min-32-chars
+ENV NEXTAUTH_URL=http://127.0.0.1:3000
+ENV NEXT_PUBLIC_APP_URL=http://127.0.0.1:3000
 
 RUN npx prisma generate
 RUN npm run build

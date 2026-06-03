@@ -2,6 +2,9 @@
   "name": "irrwms",
   "version": "1.0.0",
   "private": true,
+  "engines": {
+    "node": ">=20.9.0 <23"
+  },
   "scripts": {
     "dev": "next dev --turbo",
     "dev:all": "concurrently \"npm run dev\" \"npm run dev:socket\" \"npm run dev:worker\"",
@@ -76,7 +79,7 @@
     "cloudinary": "^2.10.0",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
-    "concurrently": "^10.0.1",
+    "concurrently": "^9.2.1",
     "date-fns": "^4.4.0",
     "framer-motion": "^12.40.0",
     "html2canvas": "^1.4.1",

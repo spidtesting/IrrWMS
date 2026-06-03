@@ -4,8 +4,10 @@ import { env } from "@/config/env";
 
 const isDevelopment = env.NODE_ENV === "development";
 
+const logLevel = env.LOG_LEVEL ?? process.env.LOG_LEVEL ?? "info";
+
 const loggerOptions: pino.LoggerOptions = {
-  level: env.LOG_LEVEL,
+  level: logLevel,
   base: {
     service: "irrwms",
     env: env.NODE_ENV,
