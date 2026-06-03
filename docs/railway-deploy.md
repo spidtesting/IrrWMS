@@ -36,21 +36,23 @@ Good for first launch. Real-time socket and cron worker can be added later.
 
 **Variables** tab — add these (replace placeholders):
 
-| Variable                   | Value                                   |
-| -------------------------- | --------------------------------------- |
-| `NODE_ENV`                 | `production`                            |
-| `DATABASE_URL`             | Supabase **session** URI, port **5432** |
-| `DIRECT_URL`               | Same as `DATABASE_URL`                  |
-| `NEXTAUTH_SECRET`          | Your 32+ char secret                    |
-| `AUTH_SECRET`              | Same as `NEXTAUTH_SECRET`               |
-| `NEXTAUTH_URL`             | `https://YOUR-DOMAIN.up.railway.app`    |
-| `AUTH_URL`                 | Same as `NEXTAUTH_URL`                  |
-| `NEXT_PUBLIC_APP_URL`      | Same as `NEXTAUTH_URL`                  |
-| `WORKER_ENABLED`           | `false`                                 |
-| `SKIP_ENV_VALIDATION`      | `false` (after all vars are set)        |
-| `UPSTASH_REDIS_REST_URL`   | From Upstash (optional but recommended) |
-| `UPSTASH_REDIS_REST_TOKEN` | From Upstash                            |
-| `LOG_LEVEL`                | `info`                                  |
+| Variable          | Value                                   |
+| ----------------- | --------------------------------------- |
+| `NODE_ENV`        | `production`                            |
+| `DATABASE_URL`    | Supabase **session** URI, port **5432** |
+| `DIRECT_URL`      | Same as `DATABASE_URL`                  |
+| `AUTH_SECRET`     | **Required.** `openssl rand -base64 32` |
+| `NEXTAUTH_SECRET` | **Same value as `AUTH_SECRET`**         |
+| `NEXTAUTH_URL`    | `https://YOUR-DOMAIN.up.railway.app`    |
+| `AUTH_URL`        | Same as `NEXTAUTH_URL`                  |
+
+If deploy logs show `[auth][error] MissingSecret`, one or both secrets are missing or empty in **Variables** — add them and redeploy (no rebuild required).
+| `NEXT_PUBLIC_APP_URL` | Same as `NEXTAUTH_URL` |
+| `WORKER_ENABLED` | `false` |
+| `SKIP_ENV_VALIDATION` | `false` (after all vars are set) |
+| `UPSTASH_REDIS_REST_URL` | From Upstash (optional but recommended) |
+| `UPSTASH_REDIS_REST_TOKEN` | From Upstash |
+| `LOG_LEVEL` | `info` |
 
 **Password tip:** URL-encode special characters in Supabase password (`@` → `%40`).
 
