@@ -51,7 +51,12 @@ const nextConfig = {
   output: "standalone",
   poweredByHeader: false,
   reactStrictMode: true,
-  serverExternalPackages: ["pino", "pino-pretty", "thread-stream"],
+  experimental: {
+    serverComponentsExternalPackages: ["pino", "pino-pretty", "thread-stream"],
+    serverActions: {
+      bodySizeLimit: "10mb",
+    },
+  },
   images: {
     remotePatterns: [
       {
@@ -59,11 +64,6 @@ const nextConfig = {
         hostname: "res.cloudinary.com",
       },
     ],
-  },
-  experimental: {
-    serverActions: {
-      bodySizeLimit: "10mb",
-    },
   },
   async headers() {
     return [

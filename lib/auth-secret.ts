@@ -1,6 +1,8 @@
 /**
  * NextAuth v5 reads AUTH_SECRET; older setups use NEXTAUTH_SECRET.
  * Public URL must not use 0.0.0.0 (Railway bind address) — use RAILWAY_PUBLIC_DOMAIN when unset.
+ *
+ * Never assign to NEXT_PUBLIC_* here — Next.js inlines those at build time and breaks minification.
  */
 
 function isBlockedAuthHost(hostname: string): boolean {
@@ -24,6 +26,11 @@ function railwayPublicOrigin(): string | undefined {
   return `https://${domain}`;
 }
 
+/** Bracket access avoids Next.js replacing NEXT_PUBLIC_* with string literals in bundles. */
+function readPublicAppUrl(): string | undefined {
+  return process.env["NEXT_PUBLIC_APP_URL"]?.trim();
+}
+
 export function resolveAuthSecret(): string | undefined {
   const secret = process.env.AUTH_SECRET?.trim() || process.env.NEXTAUTH_SECRET?.trim();
 
@@ -45,7 +52,7 @@ export function resolveAuthUrl(): string | undefined {
   const candidates = [
     process.env.AUTH_URL,
     process.env.NEXTAUTH_URL,
-    process.env.NEXT_PUBLIC_APP_URL,
+    readPublicAppUrl(),
     railwayPublicOrigin(),
   ];
 
@@ -57,9 +64,6 @@ export function resolveAuthUrl(): string | undefined {
       const origin = normalizeAuthUrl(trimmed);
       process.env.AUTH_URL = origin;
       process.env.NEXTAUTH_URL = origin;
-      if (!process.env.NEXT_PUBLIC_APP_URL?.trim()) {
-        process.env.NEXT_PUBLIC_APP_URL = origin;
-      }
       return origin;
     } catch {
       continue;

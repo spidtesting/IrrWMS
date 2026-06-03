@@ -25,7 +25,7 @@ ENV DATABASE_URL=postgresql://build:build@127.0.0.1:5432/build?schema=public
 ENV DIRECT_URL=postgresql://build:build@127.0.0.1:5432/build?schema=public
 ENV NEXTAUTH_SECRET=build-time-placeholder-secret-min-32-chars
 ENV NEXTAUTH_URL=http://127.0.0.1:3000
-ENV NEXT_PUBLIC_APP_URL=http://127.0.0.1:3000
+# NEXT_PUBLIC_APP_URL is set in Railway Variables at build time — do not bake a placeholder here
 
 RUN npx prisma generate
 RUN npm run build
