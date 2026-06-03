@@ -5,7 +5,7 @@ import { Eye, EyeOff, Languages, Loader2, Lock, Mail, Warehouse } from "lucide-r
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLanguage } from "@/hooks/useLanguage";
 import { cn } from "@/lib/utils";
 
@@ -13,13 +13,33 @@ export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") ?? "/dashboard";
+  const authError = searchParams.get("error");
   const { language, toggleLanguage, t } = useLanguage();
+
+  const configurationMessage = t(
+    "Sign-in is not configured on the server. In Railway → Variables, set AUTH_SECRET and NEXTAUTH_SECRET (same value, 32+ characters), and open the app at your public URL (not 0.0.0.0).",
+    "පිවිසීම සර්වරයේ සකසා නොමැත. Railway → Variables හි AUTH_SECRET සහ NEXTAUTH_SECRET (එකම අගය) සකසා, පොදු URL හරහා පිවිසෙන්න (0.0.0.0 නොවේ).",
+  );
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(
+    authError === "Configuration" ? configurationMessage : null,
+  );
+
+  const wrongHostMessage = t(
+    "Use your Railway public URL (e.g. https://irrwms-production.up.railway.app), not 0.0.0.0 from deploy logs.",
+    "deploy logs වල 0.0.0.0 නොව, Railway පොදු URL භාවිතා කරන්න.",
+  );
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (window.location.hostname === "0.0.0.0") {
+      setError(wrongHostMessage);
+    }
+  }, [wrongHostMessage]);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();

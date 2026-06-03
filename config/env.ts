@@ -1,5 +1,8 @@
 import { createEnv } from "@t3-oss/env-nextjs";
 import { z } from "zod";
+import { ensureAuthEnv } from "@/lib/auth-secret";
+
+ensureAuthEnv();
 
 export const env = createEnv({
   server: {

@@ -47,6 +47,8 @@ Good for first launch. Real-time socket and cron worker can be added later.
 | `AUTH_URL`        | Same as `NEXTAUTH_URL`                  |
 
 If deploy logs show `[auth][error] MissingSecret`, one or both secrets are missing or empty in **Variables** — add them and redeploy (no rebuild required).
+
+**Never open** `http://0.0.0.0:8080` from deploy logs — that is the container bind address, not your public site. Use `https://YOUR-DOMAIN.up.railway.app` only.
 | `NEXT_PUBLIC_APP_URL` | Same as `NEXTAUTH_URL` |
 | `WORKER_ENABLED` | `false` |
 | `SKIP_ENV_VALIDATION` | `false` (after all vars are set) |

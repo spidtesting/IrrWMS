@@ -20,7 +20,7 @@ Seed login: `admin@irrwms.gov.lk` / `Admin@1234`
 
 ## Production (Supabase + Railway)
 
-On Railway **Variables**, set `AUTH_SECRET` and `NEXTAUTH_SECRET` to the same value (`openssl rand -base64 32`), plus `AUTH_URL` / `NEXTAUTH_URL` to your public domain. Missing secrets cause `[auth][error] MissingSecret` in deploy logs.
+On Railway **Variables**, set `AUTH_SECRET` and `NEXTAUTH_SECRET` to the same value (`openssl rand -base64 32`), plus `NEXTAUTH_URL` to `https://your-app.up.railway.app`. Open only that public URL — **not** `http://0.0.0.0:8080` from deploy logs. Missing secrets cause `MissingSecret` / `?error=Configuration`.
 
 | Guide                                            | Description                              |
 | ------------------------------------------------ | ---------------------------------------- |
