@@ -37,18 +37,28 @@ In **Project Settings → Database**:
 
 Copy the URI and set `?schema=public` if missing.
 
-### 4. Apply schema (from your laptop)
+### 4. Apply schema
+
+**Option A — SQL Editor (recommended first time):**  
+See [docs/supabase-setup.md](./supabase-setup.md) — paste `supabase/sql/apply_in_sql_editor.sql` and Run.
+
+**Option B — Prisma CLI:**
 
 ```bash
 cp .env.example .env
-# Paste Supabase DIRECT URL into DATABASE_URL
+# Set DATABASE_URL + DIRECT_URL (see supabase-setup.md)
 
 npm install
 npm run db:generate
-npx prisma db push          # first deploy (no migrations folder yet)
-# OR: npm run db:migrate    # after you have prisma/migrations
+npx prisma migrate deploy
 
 npm run db:seed             # optional demo users (password: Admin@1234)
+```
+
+Regenerate bundled SQL after schema changes:
+
+```bash
+npm run db:supabase:sync-checksum
 ```
 
 ---
@@ -62,6 +72,8 @@ npm run db:seed             # optional demo users (password: Admin@1234)
 ---
 
 ## Part 3 — Railway (3 services)
+
+Repo includes [`railway.toml`](../railway.toml) for Docker builds.
 
 Push your repo to GitHub, then in [railway.app](https://railway.app) create a project and add **three services** from the same repository.
 

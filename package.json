@@ -21,7 +21,10 @@
     "db:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
+    "db:seed:remote": "bash scripts/seed-remote.sh",
     "db:studio": "prisma studio",
+    "db:supabase:bundle": "bash scripts/build-supabase-sql.sh",
+    "db:supabase:sync-checksum": "bash scripts/sync-prisma-checksum.sh && npm run db:supabase:bundle",
     "prepare": "husky"
   },
   "prisma": {

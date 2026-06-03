@@ -1321,7 +1321,6 @@ CREATE INDEX IF NOT EXISTS "Supplier_nameEn_trgm_idx"
 -- IrrWMS uses Prisma + NextAuth with DATABASE_URL (postgres role), NOT Supabase Auth / PostgREST.
 -- Enable RLS so anon/authenticated API roles cannot read warehouse data via the Data API.
 -- The application connection (postgres / service role) bypasses RLS as usual.
--- No policies for anon/authenticated → deny all via Supabase Data API.
 
 DO $$
 DECLARE
@@ -1351,8 +1350,7 @@ REVOKE ALL ON ALL ROUTINES IN SCHEMA public FROM anon, authenticated;
 -- >>> migrations/20250601000004_prisma_migration_history.sql
 -- IrrWMS Supabase migration 04: Prisma migration history
 -- Run after 01–03 when schema was applied via SQL Editor (not `prisma migrate deploy`).
--- Keeps `prisma migrate deploy` / `prisma migrate status` in sync on Supabase-hosted DBs.
--- Checksum auto-synced from prisma/migrations/20250601000000_init/migration.sql (npm run db:supabase:sync-checksum)
+-- Sync checksum: npm run db:supabase:sync-checksum
 
 CREATE TABLE IF NOT EXISTS "_prisma_migrations" (
   "id" VARCHAR(36) PRIMARY KEY NOT NULL,
