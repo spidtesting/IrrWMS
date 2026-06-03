@@ -1,7 +1,7 @@
 # Supabase local CLI config (optional — for `supabase start` / `supabase db push`)
 # See: https://supabase.com/docs/guides/cli/config
 
-project_id = "cakgsmzgdrsypwtmbmmw"
+project_id = "irrwms"
 
 [db]
 port = 54322
