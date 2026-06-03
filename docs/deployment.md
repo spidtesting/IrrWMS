@@ -37,19 +37,38 @@ In **Project Settings → Database**:
 
 Copy the URI and set `?schema=public` if missing.
 
-### 4. Apply schema (from your laptop)
+### 4. Apply schema (one-time)
+
+**Option A — SQL Editor (recommended for new Supabase projects)**
+
+1. Open [SQL Editor](https://supabase.com/dashboard/project/cakgsmzgdrsypwtmbmmw/sql).
+2. Paste the full contents of [`supabase/sql/apply_in_sql_editor.sql`](../supabase/sql/apply_in_sql_editor.sql).
+3. Click **Run**.
+
+**Option B — CLI (`psql`)**
 
 ```bash
 cp .env.example .env
-# Paste Supabase DIRECT URL into DATABASE_URL
+# Set DIRECT_URL and DATABASE_URL (replace YOUR_DB_PASSWORD)
 
 npm install
-npm run db:generate
-npx prisma db push          # first deploy (no migrations folder yet)
-# OR: npm run db:migrate    # after you have prisma/migrations
-
-npm run db:seed             # optional demo users (password: Admin@1234)
+npm run db:supabase:apply
 ```
+
+**Option C — Prisma (if schema not yet applied via SQL)**
+
+```bash
+npx prisma migrate deploy
+```
+
+### 5. Seed data
+
+```bash
+npm run db:generate
+npm run db:seed:remote
+```
+
+Login: `admin@irrwms.gov.lk` / `Admin@1234`
 
 ---
 
@@ -73,7 +92,7 @@ Push your repo to GitHub, then in [railway.app](https://railway.app) create a pr
 | Start          | `npm start`                                      |
 | Root directory | `/`                                              |
 
-Or use **Dockerfile** target: `runner`.
+Use **Dockerfile** with build target `runner` (see [`railway.toml`](../railway.toml)). Copy env from [`railway.env.example`](../railway.env.example).
 
 **Public domain:** enable → e.g. `https://irrwms-web.up.railway.app`
 
