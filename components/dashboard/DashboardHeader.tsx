@@ -7,6 +7,7 @@ import { Bell, Languages, LogOut, Menu, Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useAppStore } from "@/store/useAppStore";
 import { useUnreadNotificationCount } from "@/hooks/api/use-notifications";
+import { useMounted } from "@/hooks/useMounted";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -23,6 +24,7 @@ export function DashboardHeader() {
   const t = useTranslations();
   const { data: session } = useSession();
   const { theme, setTheme } = useTheme();
+  const mounted = useMounted();
   const toggleMobileOpen = useAppStore((s) => s.toggleMobileOpen);
   const language = useAppStore((s) => s.language);
   const setLanguage = useAppStore((s) => s.setLanguage);
@@ -36,6 +38,8 @@ export function DashboardHeader() {
       .join("")
       .slice(0, 2)
       .toUpperCase() ?? "IW";
+
+  const unreadCount = unread?.count ?? 0;
 
   return (
     <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center justify-between gap-2 border-b bg-background/95 px-3 backdrop-blur supports-[backdrop-filter]:bg-background/60 sm:h-16 sm:px-4">
@@ -67,16 +71,17 @@ export function DashboardHeader() {
           size="icon"
           onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
           aria-label={t("nav.toggleTheme")}
+          disabled={!mounted}
         >
-          {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          {mounted && theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
         </Button>
 
         <Button variant="ghost" size="icon" asChild className="relative">
           <Link href="/notifications" aria-label={t("nav.notifications")}>
             <Bell className="h-4 w-4" />
-            {(unread?.count ?? 0) > 0 && (
+            {mounted && unreadCount > 0 && (
               <Badge className="absolute -right-1 -top-1 h-5 min-w-5 px-1 text-[10px]">
-                {unread!.count > 99 ? "99+" : unread!.count}
+                {unreadCount > 99 ? "99+" : unreadCount}
               </Badge>
             )}
           </Link>
