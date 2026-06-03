@@ -32,7 +32,7 @@ export function useMarkNotificationRead() {
 export function useMarkAllNotificationsRead() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () => api.post<{ updatedCount: number }>("/notifications/mark-all-read"),
+    mutationFn: () => api.post<{ updated: number }>("/notifications/read-all"),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: queryKeys.notifications.all() });
     },

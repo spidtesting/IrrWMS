@@ -11,7 +11,6 @@ import { SearchBar } from "@/components/shared/SearchBar";
 import { PaginationControls } from "@/components/shared/PaginationControls";
 import { InventoryTable } from "@/components/inventory/InventoryTable";
 import { ExportButtons } from "@/components/reports/ExportButtons";
-import { ItemsExcelImport } from "@/components/inventory/ItemsExcelImport";
 import { inventoryExportColumns } from "@/lib/utils/export";
 import { useInventoryList } from "@/hooks/api/use-inventory";
 import { Button } from "@/components/ui/button";
@@ -42,8 +41,7 @@ export default function InventoryPage() {
         title={t("title")}
         description={t("description")}
         action={
-          <div className="flex flex-wrap gap-2">
-            <ItemsExcelImport onSuccess={() => void refetch()} />
+          <div className="flex gap-2">
             <ExportButtons
               data={rows.map((r) => ({
                 itemCode: r.item.itemCode,
