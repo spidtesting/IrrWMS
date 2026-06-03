@@ -105,6 +105,12 @@ function check(name, raw) {
       "⚠️  DIRECT_URL should use Supabase session/direct mode (port 5432), not the transaction pooler (6543).",
     );
   }
+
+  const isSupabase =
+    parsed.hostname.includes("supabase.com") || parsed.hostname.includes("supabase.co");
+  if (isSupabase && !raw.includes("sslmode=")) {
+    console.warn(`⚠️  ${name}: Supabase usually requires append &sslmode=require to the URL.`);
+  }
 }
 
 function parseUrlHint(raw) {

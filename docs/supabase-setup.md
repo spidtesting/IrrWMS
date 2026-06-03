@@ -29,8 +29,8 @@ IrrWMS uses **Supabase only as PostgreSQL**. Authentication is **NextAuth** (not
 Example `.env` (replace placeholders):
 
 ```env
-DIRECT_URL=postgresql://postgres.abcdef:YOUR_ENCODED_PASSWORD@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres?schema=public
-DATABASE_URL=postgresql://postgres.abcdef:YOUR_ENCODED_PASSWORD@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres?schema=public
+DIRECT_URL=postgresql://postgres.abcdef:YOUR_ENCODED_PASSWORD@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres?schema=public&sslmode=require
+DATABASE_URL=postgresql://postgres.abcdef:YOUR_ENCODED_PASSWORD@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres?schema=public&sslmode=require
 ```
 
 Validate:
