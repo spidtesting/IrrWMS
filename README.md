@@ -20,10 +20,12 @@ Seed login: `admin@irrwms.gov.lk` / `Admin@1234`
 
 ## Production (Supabase + Railway)
 
-| Guide                                            | Description                             |
-| ------------------------------------------------ | --------------------------------------- |
-| [docs/supabase-setup.md](docs/supabase-setup.md) | Online database + SQL Editor migrations |
-| [docs/deployment.md](docs/deployment.md)         | Railway (web, socket, worker) + Upstash |
+| Guide                                            | Description                              |
+| ------------------------------------------------ | ---------------------------------------- |
+| [docs/railway-deploy.md](docs/railway-deploy.md) | **Deploy on Railway.com** (step-by-step) |
+| [docs/supabase-setup.md](docs/supabase-setup.md) | Online database + SQL Editor migrations  |
+| [docs/deployment.md](docs/deployment.md)         | Architecture + env reference             |
+| [railway.env.example](railway.env.example)       | Railway variable template                |
 
 ```bash
 npm run db:supabase:bundle   # builds supabase/sql/apply_in_sql_editor.sql

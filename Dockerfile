@@ -16,6 +16,8 @@ COPY . .
 
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
+# Build without full production secrets (set real env at runtime on Railway)
+ENV SKIP_ENV_VALIDATION=true
 
 RUN npx prisma generate
 RUN npm run build
@@ -55,10 +57,11 @@ RUN addgroup --system --gid 1001 nodejs \
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY package.json ./
+COPY package.json tsconfig.json ./
 COPY prisma ./prisma
 COPY server ./server
 COPY lib ./lib
+COPY config ./config
 
 USER worker
 
@@ -76,10 +79,12 @@ RUN addgroup --system --gid 1001 nodejs \
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY package.json ./
+COPY package.json tsconfig.json ./
 COPY prisma ./prisma
 COPY server ./server
 COPY lib ./lib
+COPY config ./config
+COPY auth.ts auth.config.ts ./
 
 USER socket
 

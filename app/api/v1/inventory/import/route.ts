@@ -51,9 +51,9 @@ export async function POST(request: NextRequest) {
       warehouseId: query.warehouseId,
     });
 
-    const audit = getRequestAuditContext(request, user);
+    const audit = getRequestAuditContext(request);
     await writeModuleAudit({
-      userId: audit.userId,
+      userId: user.id,
       action: "IMPORT",
       module: "inventory",
       details: {
@@ -61,8 +61,7 @@ export async function POST(request: NextRequest) {
         rowCount: records.length,
         ...result,
       },
-      ipAddress: audit.ipAddress,
-      userAgent: audit.userAgent,
+      ...audit,
     });
 
     return successResponse(

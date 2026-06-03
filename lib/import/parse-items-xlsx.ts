@@ -110,7 +110,7 @@ export function parseItemsWorkbook(buffer: Buffer | ArrayBuffer): ParsedItemReco
 
 export function getCategoriesFromRecords(records: ParsedItemRecord[]): NormalizedCategory[] {
   const codes = new Set(records.map((r) => r.categoryCode));
-  return [...codes]
+  return Array.from(codes)
     .map((code) => Object.values(CATEGORY_MAP).find((c) => c.code === code)!)
     .filter(Boolean);
 }
