@@ -1,172 +1,176 @@
-# Supabase database setup
+# Supabase setup for IrrWMS
 
-IrrWMS uses **Supabase for PostgreSQL only**. Authentication is **NextAuth** (Prisma `User` / `Session` tables), not Supabase Auth. The app connects with `DATABASE_URL`; do not use the Supabase anon key in the Next.js app.
+IrrWMS uses **Supabase only as PostgreSQL**. Authentication is **NextAuth** (not Supabase Auth).
 
-## Architecture
+## Prerequisites
 
-| Component                   | Role                                                     |
-| --------------------------- | -------------------------------------------------------- |
-| `supabase/migrations/*.sql` | Ordered SQL applied in Dashboard or via Supabase CLI     |
-| `prisma/schema.prisma`      | Source of truth for schema changes                       |
-| `prisma/migrations/`        | Prisma migrate history (kept in sync via migration `04`) |
-| `prisma/seed.ts`            | Demo data (bcrypt passwords; not suitable for raw SQL)   |
+- Supabase account and a new project
+- Node.js 20+ locally
+- `.env` copied from `.env.example`
 
-## New Supabase project
+## 1. Create a Supabase project
 
-### 1. Create project
+1. Go to [supabase.com/dashboard](https://supabase.com/dashboard) → **New project**.
+2. Choose region and set a strong database password (save it).
+3. Wait until the project is **Active**.
 
-1. [supabase.com](https://supabase.com) → **New project**.
-2. Save the database password.
-3. **Settings → Database** → copy the **URI** (direct / session mode, port **5432**).
+## 2. Connection strings
 
-### 2. Apply schema (SQL Editor)
+**Project Settings → Database → Connection string → URI**
 
-Use a **new empty** database. Do not re-run the full schema on an existing populated DB.
+| Variable                  | Supabase mode               | Port   | Use for                                                        |
+| ------------------------- | --------------------------- | ------ | -------------------------------------------------------------- |
+| `DIRECT_URL`              | Session / Direct            | `5432` | SQL Editor follow-up seed, `prisma migrate`, `npm run db:seed` |
+| `DATABASE_URL`            | Session / Direct on Railway | `5432` | Next.js app, socket, worker on Railway                         |
+| `DATABASE_URL` (optional) | Transaction pooler          | `6543` | Vercel/serverless only                                         |
 
-**Option A — one file (recommended for first setup)**
+**Password encoding:** if the password contains `@`, `#`, `:`, or `%`, URL-encode it (`@` → `%40`).
 
-1. Open **SQL Editor** in the Supabase Dashboard.
-2. Paste the contents of [`supabase/sql/apply_in_sql_editor.sql`](../supabase/sql/apply_in_sql_editor.sql).
-3. Click **Run** and wait until it completes (~30s).
-
-**Option B — step by step (easier to debug)**
-
-Run each file in order from [`supabase/migrations/`](../supabase/migrations/):
-
-| Order | File                                          |
-| ----- | --------------------------------------------- |
-| 1     | `20250601000000_extensions.sql`               |
-| 2     | `20250601000001_initial_schema.sql`           |
-| 3     | `20250601000002_trgm_indexes.sql`             |
-| 4     | `20250601000003_rls_hardening.sql`            |
-| 5     | `20250601000004_prisma_migration_history.sql` |
-
-### 3. Local environment
-
-```bash
-cp .env.example .env
-```
-
-Set in `.env`:
+Example `.env` (replace placeholders):
 
 ```env
-DATABASE_URL=postgresql://postgres.[PROJECT_REF]:[PASSWORD]@aws-0-[REGION].pooler.supabase.com:5432/postgres?schema=public
-NEXTAUTH_SECRET=<openssl rand -base64 32>
-NEXTAUTH_URL=http://localhost:3000
-NEXT_PUBLIC_APP_URL=http://localhost:3000
+DIRECT_URL=postgresql://postgres.abcdef:YOUR_ENCODED_PASSWORD@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres?schema=public
+DATABASE_URL=postgresql://postgres.abcdef:YOUR_ENCODED_PASSWORD@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres?schema=public
 ```
 
-### 4. Seed demo data
+Validate:
 
 ```bash
-npm install
+npm run db:check-url
+```
+
+## 3. Apply schema (SQL Editor — recommended)
+
+Best for a **fresh empty** database.
+
+1. Regenerate the bundle locally:
+
+   ```bash
+   npm run db:supabase:bundle
+   ```
+
+2. Open **Supabase Dashboard → SQL Editor → New query**.
+
+3. Open [`supabase/sql/apply_in_sql_editor.sql`](../supabase/sql/apply_in_sql_editor.sql) in your editor, copy **the entire file**, paste into SQL Editor.
+
+4. Click **Run**. It applies, in order:
+
+   | File                                          | Purpose                         |
+   | --------------------------------------------- | ------------------------------- |
+   | `20250601000000_extensions.sql`               | `pg_trgm` extension             |
+   | `20250601000001_initial_schema.sql`           | All tables, enums, indexes, FKs |
+   | `20250601000002_trgm_indexes.sql`             | Trigram search indexes          |
+   | `20250601000003_rls_hardening.sql`            | RLS + revoke anon/authenticated |
+   | `20250601000004_prisma_migration_history.sql` | Prisma migration tracking row   |
+
+5. Confirm in **Table Editor**: tables such as `User`, `Warehouse`, `Item` exist.
+
+6. Verify Prisma history:
+
+   ```sql
+   SELECT migration_name, finished_at FROM "_prisma_migrations";
+   ```
+
+   Expected: `20250601000000_init`.
+
+## 4. Seed demo data (local CLI)
+
+```bash
 npm run db:generate
 npm run db:seed
 ```
 
-Seed logins (password `Admin@1234`):
+Default login (from seed):
 
-- `admin@irrwms.gov.lk`
-- `staff@irrwms.gov.lk`
+| Email                 | Password     |
+| --------------------- | ------------ |
+| `admin@irrwms.gov.lk` | `Admin@1234` |
 
-## Verify
+## 5. Alternative: Prisma CLI path
 
-### SQL (Dashboard → SQL Editor)
-
-```sql
--- Extension for search
-SELECT extname FROM pg_extension WHERE extname = 'pg_trgm';
-
--- Core tables exist
-SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY 1;
-
--- RLS enabled on app tables
-SELECT tablename, rowsecurity
-FROM pg_tables
-WHERE schemaname = 'public' AND tablename = 'User';
-
--- Prisma knows migrations were applied
-SELECT migration_name, finished_at FROM "_prisma_migrations";
-```
-
-Expected: `pg_trgm` present, 30+ tables, `User.rowsecurity = true`, one row `20250601000000_init`.
-
-### CLI (from project root)
+If you prefer not to use the SQL Editor:
 
 ```bash
-npx prisma migrate status
+npm run db:check-url
+npx prisma migrate deploy
+npm run db:supabase:extras   # trgm indexes + RLS (if not in SQL bundle path)
+npm run db:seed
 ```
 
-Expected: **Database schema is up to date**.
+## 6. Recovery (partial or failed migration)
 
-```bash
-npm run dev
-curl -s http://localhost:3000/api/health
-```
+**Development project (safe to wipe):**
 
-## Connection strings
+1. SQL Editor:
 
-| Runtime                                   | URL type           | Port | Notes                                    |
-| ----------------------------------------- | ------------------ | ---- | ---------------------------------------- |
-| Migrations, seed, Railway, worker, socket | Direct / Session   | 5432 | Full Postgres features                   |
-| Vercel (serverless)                       | Transaction pooler | 6543 | Add `?pgbouncer=true&connection_limit=1` |
-
-Do **not** put `SUPABASE_SERVICE_ROLE_KEY` or anon key in `NEXT_PUBLIC_*` variables.
-
-## Regenerate bundled SQL
-
-After editing files under `supabase/migrations/`:
-
-```bash
-npm run db:supabase:bundle
-```
-
-This updates [`supabase/sql/apply_in_sql_editor.sql`](../supabase/sql/apply_in_sql_editor.sql).
-
-## Supabase CLI (optional)
-
-```bash
-supabase login
-supabase link --project-ref <your-project-ref>
-supabase db push
-```
-
-CLI applies the same files under `supabase/migrations/`. You still need migration `04` for Prisma unless you run `prisma migrate deploy` instead.
-
-## Schema changes later
-
-1. Change [`prisma/schema.prisma`](../prisma/schema.prisma).
-2. `npm run db:migrate` (creates a new Prisma migration).
-3. Export SQL for Supabase, e.g.:
-
-   ```bash
-   npx prisma migrate diff \
-     --from-migrations prisma/migrations \
-     --to-schema-datamodel prisma/schema.prisma \
-     --script > supabase/migrations/20250601000005_your_change.sql
+   ```sql
+   DROP SCHEMA public CASCADE;
+   CREATE SCHEMA public;
+   GRANT ALL ON SCHEMA public TO postgres;
+   GRANT ALL ON SCHEMA public TO public;
    ```
 
-4. `npm run db:supabase:bundle`
-5. Run the new migration file in SQL Editor (or `supabase db push`) on staging/production.
+2. Re-run the full [`apply_in_sql_editor.sql`](../supabase/sql/apply_in_sql_editor.sql) bundle.
 
-## Prisma checksum (migration 04)
+**Or** use Supabase **Database → Branches** reset on a dev branch.
 
-If you replace `prisma/migrations/20250601000000_init/migration.sql`, update the checksum in `20250601000004_prisma_migration_history.sql`:
+Do **not** drop production schemas without a backup.
+
+## 7. Schema changes later
+
+1. Edit [`prisma/schema.prisma`](../prisma/schema.prisma).
+2. `npx prisma migrate dev --name describe_change`
+3. Add a new file under `supabase/migrations/` with the SQL delta (or export via `prisma migrate diff`).
+4. `npm run db:supabase:sync-checksum` (if init migration changed)
+5. `npm run db:supabase:bundle`
+6. Apply **only the new** migration file in SQL Editor (production), or `npx prisma migrate deploy`.
+
+Never hand-edit `supabase/sql/apply_in_sql_editor.sql`.
+
+## Import Items.xlsx (258 items)
+
+Your spreadsheet columns map to the database as follows:
+
+| Excel        | Database                                      |
+| ------------ | --------------------------------------------- |
+| ItemID       | `itemCode` → `IMP-00001`, …                   |
+| ItemName     | `nameEn`, `nameSi`                            |
+| Category     | `Category` (Stationery / Inventory / General) |
+| SerialNo     | `barcode` (if not `-`)                        |
+| Model        | `dimensions`                                  |
+| CurrentStock | `Inventory.currentStock`                      |
+
+### Option A — SQL Editor (Supabase)
 
 ```bash
-shasum -a 256 prisma/migrations/20250601000000_init/migration.sql
+npm run db:import-items:sql
 ```
+
+Paste [`supabase/sql/import_items_from_excel.sql`](../supabase/sql/import_items_from_excel.sql) into **SQL Editor → Run**.
+
+Creates warehouse `WH-IMP-01` and upserts all items (safe to re-run).
+
+### Option B — CLI (local / direct URL)
+
+```bash
+npm run db:import-items
+```
+
+### Option C — UI
+
+**Inventory → Import Excel** (Manager+). Upload the same `.xlsx` format.
+
+Source file is stored at [`data/Items.xlsx`](../data/Items.xlsx).
+
+---
 
 ## Troubleshooting
 
-| Issue                                             | Fix                                                                                             |
-| ------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| `type "Role" already exists`                      | Schema already applied; skip file 01 or use a fresh project                                     |
-| `prisma migrate status` wants to apply migrations | Run migration `04` in SQL Editor, or `npx prisma migrate resolve --applied 20250601000000_init` |
-| Auth `MissingSecret`                              | Set `NEXTAUTH_SECRET` in `.env` (32+ chars)                                                     |
-| Search slow / missing indexes                     | Re-run `20250601000002_trgm_indexes.sql` or `npx tsx scripts/reindex.ts`                        |
+| Error                                 | Fix                                                                                       |
+| ------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `invalid port number in database URL` | URL-encode password; remove `[ brackets ]` from `.env`; use port `5432` for direct        |
+| `type "Role" already exists`          | DB not empty — run recovery section above                                                 |
+| `prisma migrate` out of sync          | Re-run migration `04` or `npm run db:supabase:bundle` and execute file `20250601000004_*` |
+| Auth `MissingSecret`                  | Set `NEXTAUTH_SECRET` (32+ chars): `openssl rand -base64 32`                              |
 
-## Related docs
-
-- [deployment.md](./deployment.md) — Railway / Vercel + env vars
-- [runbook.md](./runbook.md) — backups, worker, operations
+Next: [deployment.md](./deployment.md) for Railway hosting.

@@ -37,13 +37,14 @@ case "$MODE" in
     echo "WARNING: This will reset the database!"
     npx prisma migrate reset --force
     ;;
+  extras)
+    echo "==> Applying Supabase extras (trgm + RLS) via Prisma"
+    npx prisma db execute --file supabase/migrations/20250601000002_trgm_indexes.sql
+    npx prisma db execute --file supabase/migrations/20250601000003_rls_hardening.sql
+    ;;
   *)
     echo "Usage: $0 [dev|deploy|reset|extras] [extra prisma args...]" >&2
     exit 1
-    ;;
-  extras)
-    npx prisma db execute --file supabase/migrations/20250601000002_trgm_indexes.sql
-    npx prisma db execute --file supabase/migrations/20250601000003_rls_hardening.sql
     ;;
 esac
 

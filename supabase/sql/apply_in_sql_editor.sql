@@ -1352,7 +1352,7 @@ REVOKE ALL ON ALL ROUTINES IN SCHEMA public FROM anon, authenticated;
 -- IrrWMS Supabase migration 04: Prisma migration history
 -- Run after 01–03 when schema was applied via SQL Editor (not `prisma migrate deploy`).
 -- Keeps `prisma migrate deploy` / `prisma migrate status` in sync on Supabase-hosted DBs.
--- Checksum matches prisma/migrations/20250601000000_init/migration.sql
+-- Checksum auto-synced from prisma/migrations/20250601000000_init/migration.sql (npm run db:supabase:sync-checksum)
 
 CREATE TABLE IF NOT EXISTS "_prisma_migrations" (
   "id" VARCHAR(36) PRIMARY KEY NOT NULL,

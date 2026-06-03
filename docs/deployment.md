@@ -1,180 +1,162 @@
 # Deploy IrrWMS: Supabase + Railway (+ Upstash)
 
-Recommended production stack:
+Production stack:
 
-- **Supabase** — PostgreSQL (data only; app uses NextAuth, not Supabase Auth)
-- **Railway** — Next.js app, socket server, cron worker (3 services)
-- **Upstash** — Redis for rate limiting and socket pub/sub
+- **Supabase** — PostgreSQL ([setup guide](./supabase-setup.md))
+- **Railway** — 3 services: web, socket, worker
+- **Upstash** — Redis (rate limiting + socket pub/sub)
 
-Alternative: host the Next.js app on **Vercel** and run socket + worker on Railway (see [Vercel-only web](#optional-vercel-for-nextjs-only)).
+Alternative: **Vercel** for Next.js only + Railway for socket/worker ([below](#optional-vercel-for-nextjs-only)).
+
+---
+
+## Quick start order
+
+1. [Supabase](./supabase-setup.md) — SQL Editor bundle + seed
+2. [Upstash](#part-2--upstash-redis) — Redis credentials
+3. [Railway](#part-3--railway-3-services) — deploy web → socket → worker
+4. [Verify](#part-4--verify)
 
 ---
 
 ## Part 1 — Supabase database
 
-Full step-by-step (SQL Editor migrations, RLS, Prisma sync, verification): **[supabase-setup.md](./supabase-setup.md)**.
+**Full guide:** [docs/supabase-setup.md](./supabase-setup.md)
 
-### Quick summary
-
-1. Create a project at [supabase.com](https://supabase.com).
-2. **SQL Editor** → run [`supabase/sql/apply_in_sql_editor.sql`](../supabase/sql/apply_in_sql_editor.sql) on an empty database (or run `supabase/migrations/*.sql` in order `00` → `04`).
-3. Set `DATABASE_URL` to the **direct** URI (port `5432`) in `.env`.
-4. Local seed:
+### SQL Editor (recommended)
 
 ```bash
-cp .env.example .env
-npm install
+npm run db:supabase:bundle
+```
+
+Paste [`supabase/sql/apply_in_sql_editor.sql`](../supabase/sql/apply_in_sql_editor.sql) into **Supabase → SQL Editor → Run**.
+
+### Seed from your machine
+
+```bash
+npm run db:check-url
 npm run db:generate
 npm run db:seed
 ```
 
-### Connection strings
+Set both `DIRECT_URL` and `DATABASE_URL` to Supabase **session** URI (port `5432`). See [.env.example](../.env.example).
 
-| Use case                      | Connection             | Port                                          |
-| ----------------------------- | ---------------------- | --------------------------------------------- |
-| Migrations & seed (local CLI) | **Direct** / Session   | `5432`                                        |
-| Railway web app (long-lived)  | Direct or Session      | `5432`                                        |
-| Vercel (serverless)           | **Transaction pooler** | `6543` + `?pgbouncer=true&connection_limit=1` |
+### npm database scripts
 
-Copy the URI and set `?schema=public` if missing. Use `DATABASE_URL` only — not Supabase anon/service keys in the Next.js app.
+| Script                              | Purpose                                |
+| ----------------------------------- | -------------------------------------- |
+| `npm run db:check-url`              | Validate connection strings            |
+| `npm run db:supabase:bundle`        | Build SQL Editor bundle                |
+| `npm run db:supabase:sync-checksum` | Update Prisma checksum in migration 04 |
+| `npm run db:supabase:extras`        | Apply trgm + RLS via CLI               |
+| `npm run db:seed`                   | Demo data                              |
 
 ---
 
 ## Part 2 — Upstash Redis
 
-1. [console.upstash.com](https://console.upstash.com) → Create Redis database.
-2. Copy **REST URL** and **REST Token** (used by the app for rate limiting).
-3. For socket/worker pub/sub, also set **`REDIS_URL`** to the Redis `rediss://` URL if Upstash provides it, or use the same Upstash instance’s connection string from the dashboard.
+1. [console.upstash.com](https://console.upstash.com) → Create database.
+2. Copy **REST URL** + **REST Token** → `UPSTASH_REDIS_REST_*`.
+3. Copy **Redis URL** (`rediss://...`) → `REDIS_URL` for socket/worker.
 
 ---
 
 ## Part 3 — Railway (3 services)
 
-Push your repo to GitHub, then in [railway.app](https://railway.app) create a project and add **three services** from the same repository.
+Repo includes Railway config files:
 
-### Service A — Web (Next.js)
+| File                                            | Service       | Docker target |
+| ----------------------------------------------- | ------------- | ------------- |
+| [`railway.toml`](../railway.toml)               | Web (Next.js) | `runner`      |
+| [`railway.socket.toml`](../railway.socket.toml) | Socket.io     | `socket`      |
+| [`railway.worker.toml`](../railway.worker.toml) | Cron worker   | `worker`      |
 
-| Setting        | Value                                            |
-| -------------- | ------------------------------------------------ |
-| Build          | `npm ci && npx prisma generate && npm run build` |
-| Start          | `npm start`                                      |
-| Root directory | `/`                                              |
+### Setup
 
-Or use **Dockerfile** target: `runner`.
+1. Push repo to GitHub.
+2. [railway.app](https://railway.app) → **New Project** → **Deploy from GitHub** → select repo.
+3. **Service 1 (web):** uses `railway.toml` by default. Enable **Public Networking**.
+4. **Service 2 (socket):** **+ New Service** → same repo → **Settings → Config file** = `railway.socket.toml` → Public domain.
+5. **Service 3 (worker):** **+ New Service** → **Config file** = `railway.worker.toml` (no public URL).
 
-**Public domain:** enable → e.g. `https://irrwms-web.up.railway.app`
+Non-Docker alternative for web: Build `npm ci && npx prisma generate && npm run build`, Start `npm start`.
 
-### Service B — Socket
+### Shared environment variables
 
-| Setting           | Value                      |
-| ----------------- | -------------------------- |
-| Start             | `npx tsx server/socket.ts` |
-| Dockerfile target | `socket` (optional)        |
-
-**Public domain:** e.g. `https://irrwms-socket.up.railway.app`  
-Health check: `GET /health` on port `3001`.
-
-### Service C — Worker
-
-| Setting           | Value                      |
-| ----------------- | -------------------------- |
-| Start             | `npx tsx server/worker.ts` |
-| Dockerfile target | `worker` (optional)        |
-
-No public URL required.
-
----
-
-## Environment variables (all 3 Railway services)
-
-Set these on **Web**, **Socket**, and **Worker** (shared where noted):
+Set on each service (adjust domains):
 
 ```bash
 NODE_ENV=production
 
-# Supabase — direct/session URL (5432) for Railway
-DATABASE_URL=postgresql://postgres.[REF]:[PASSWORD]@[HOST]:5432/postgres?schema=public
+DATABASE_URL=postgresql://postgres.[REF]:[ENCODED_PASSWORD]@[HOST]:5432/postgres?schema=public
+DIRECT_URL=postgresql://postgres.[REF]:[ENCODED_PASSWORD]@[HOST]:5432/postgres?schema=public
 
-# Auth — generate: openssl rand -base64 32
-NEXTAUTH_SECRET=
-NEXTAUTH_URL=https://YOUR-WEB-DOMAIN
-AUTH_SECRET=                    # same value as NEXTAUTH_SECRET (optional)
-AUTH_URL=https://YOUR-WEB-DOMAIN
+NEXTAUTH_SECRET=                    # openssl rand -base64 32
+AUTH_SECRET=                         # same as NEXTAUTH_SECRET
+NEXTAUTH_URL=https://YOUR-WEB.up.railway.app
+AUTH_URL=https://YOUR-WEB.up.railway.app
+NEXT_PUBLIC_APP_URL=https://YOUR-WEB.up.railway.app
+NEXT_PUBLIC_SOCKET_URL=https://YOUR-SOCKET.up.railway.app
 
-NEXT_PUBLIC_APP_URL=https://YOUR-WEB-DOMAIN
-NEXT_PUBLIC_SOCKET_URL=https://YOUR-SOCKET-DOMAIN
-
-# Redis
 UPSTASH_REDIS_REST_URL=
 UPSTASH_REDIS_REST_TOKEN=
-REDIS_URL=                      # rediss://... if socket adapter needs it
+REDIS_URL=rediss://...
 
-# Worker (web service only)
-WORKER_ENABLED=false
-
-# Worker service only
-WORKER_ENABLED=true
-CRON_SECRET=                    # openssl rand -hex 16
-
-# Socket service
 SOCKET_PORT=3001
-
-# Optional
-RESEND_API_KEY=
-RESEND_FROM_EMAIL=
-CLOUDINARY_CLOUD_NAME=
-CLOUDINARY_API_KEY=
-CLOUDINARY_API_SECRET=
-NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=
+CRON_SECRET=                         # openssl rand -hex 16
 LOG_LEVEL=info
 ```
 
-**Web service only:** `WORKER_ENABLED=false`  
-**Worker service only:** `WORKER_ENABLED=true`
+| Service | `WORKER_ENABLED` |
+| ------- | ---------------- |
+| Web     | `false`          |
+| Socket  | omit or `false`  |
+| Worker  | `true`           |
+
+Optional: `RESEND_*`, `CLOUDINARY_*` for email/uploads.
 
 ---
 
 ## Part 4 — Verify
 
-1. `https://YOUR-WEB-DOMAIN/api/health` → `200`
-2. `https://YOUR-SOCKET-DOMAIN/health` → `200`
-3. Login with seed user e.g. `admin@irrwms.gov.lk` / `Admin@1234` (if seeded)
-4. Check Railway logs for worker cron and socket Redis connection errors
+| Check         | URL / action                                     |
+| ------------- | ------------------------------------------------ |
+| Web health    | `GET https://YOUR-WEB/api/health` → 200          |
+| Socket health | `GET https://YOUR-SOCKET/health` → 200           |
+| Login         | `admin@irrwms.gov.lk` / `Admin@1234` (if seeded) |
+| Logs          | No Prisma connection or Redis errors on boot     |
 
 ---
 
 ## Optional: Vercel for Next.js only
 
-1. Import repo on Vercel.
-2. **Build:** `prisma generate && next build` (default from `package.json`).
-3. Use Supabase **pooled** `DATABASE_URL` (port `6543`).
-4. Set `WORKER_ENABLED=false`.
-5. Deploy **socket + worker** on Railway; set `NEXT_PUBLIC_SOCKET_URL` to the Railway socket URL.
-
-Vercel env vars: same as web row above, plus pooled `DATABASE_URL`.
+1. Supabase **transaction pooler** `DATABASE_URL` (port `6543`, `pgbouncer=true`).
+2. `WORKER_ENABLED=false`.
+3. Deploy socket + worker on Railway; set `NEXT_PUBLIC_SOCKET_URL`.
 
 ---
 
-## Local dev fixes (before deploy)
+## Local development
 
 ```bash
 cp .env.example .env
-openssl rand -base64 32   # → NEXTAUTH_SECRET
+openssl rand -base64 32   # NEXTAUTH_SECRET + AUTH_SECRET
+npm run db:check-url
+docker compose up -d postgres redis   # optional local DB
+npm run dev:all
 ```
 
-Ensure `.env` exists; without `NEXTAUTH_SECRET`, auth returns `MissingSecret`.
+Without `NEXTAUTH_SECRET` (32+ chars), auth returns `MissingSecret`.
 
 ---
 
-## CI / schema updates
-
-After changing `prisma/schema.prisma`:
+## Schema updates (CI / production)
 
 ```bash
-npx prisma migrate dev --name describe_change   # creates migration
+npx prisma migrate dev --name describe_change
+npm run db:supabase:sync-checksum   # if init migration changed
+npm run db:supabase:bundle
 git push
-# On deploy or manually:
-npx prisma migrate deploy
 ```
 
-Or `npx prisma db push` for prototypes (not ideal for production teams).
+Production: apply new `supabase/migrations/*.sql` in SQL Editor, or run `npx prisma migrate deploy` from CI with `DIRECT_URL`.

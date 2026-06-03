@@ -51,6 +51,7 @@ const nextConfig: NextConfig = {
   output: "standalone",
   poweredByHeader: false,
   reactStrictMode: true,
+  serverExternalPackages: ["pino", "pino-pretty", "thread-stream"],
   images: {
     remotePatterns: [
       {

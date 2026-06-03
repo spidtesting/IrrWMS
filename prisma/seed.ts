@@ -16,6 +16,11 @@ import {
 import { hash } from "bcryptjs";
 import { Decimal } from "@prisma/client/runtime/library";
 
+// Prefer direct/session URL for Supabase (migrations & seed must not use pooler 6543)
+if (process.env.DIRECT_URL) {
+  process.env.DATABASE_URL = process.env.DIRECT_URL;
+}
+
 const prisma = new PrismaClient();
 const BCRYPT_ROUNDS = 12;
 const SEED_PASSWORD = "Admin@1234";

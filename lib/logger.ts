@@ -1,9 +1,10 @@
 import pino from "pino";
+import pretty from "pino-pretty";
 import { env } from "@/config/env";
 
 const isDevelopment = env.NODE_ENV === "development";
 
-export const logger = pino({
+const loggerOptions: pino.LoggerOptions = {
   level: env.LOG_LEVEL,
   base: {
     service: "irrwms",
@@ -20,17 +21,21 @@ export const logger = pino({
     ],
     remove: true,
   },
-  transport: isDevelopment
-    ? {
-        target: "pino-pretty",
-        options: {
-          colorize: true,
-          translateTime: "SYS:standard",
-          ignore: "pid,hostname",
-        },
-      }
-    : undefined,
-});
+};
+
+/**
+ * Do not use pino `transport` here — it spawns thread-stream workers that fail
+ * under Next.js / Turbopack with ERR_WORKER_PATH on API routes.
+ */
+const prettyStream = isDevelopment
+  ? pretty({
+      colorize: true,
+      translateTime: "SYS:standard",
+      ignore: "pid,hostname",
+    })
+  : undefined;
+
+export const logger = prettyStream ? pino(loggerOptions, prettyStream) : pino(loggerOptions);
 
 export type Logger = typeof logger;
 

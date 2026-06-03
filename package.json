@@ -22,7 +22,12 @@
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
+    "db:check-url": "node scripts/check-database-url.mjs",
+    "db:supabase:sync-checksum": "node scripts/compute-prisma-checksum.mjs",
     "db:supabase:bundle": "bash scripts/build-supabase-sql.sh",
+    "db:supabase:extras": "bash scripts/migrate.sh extras",
+    "db:import-items": "tsx scripts/import-items-from-xlsx.ts --apply",
+    "db:import-items:sql": "tsx scripts/import-items-from-xlsx.ts --sql-only",
     "prepare": "husky"
   },
   "prisma": {

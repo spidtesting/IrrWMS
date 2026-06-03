@@ -1,28 +1,16 @@
 #!/usr/bin/env bash
-# Concatenate supabase/migrations/*.sql into supabase/sql/apply_in_sql_editor.sql
-# for one-shot paste in Supabase Dashboard → SQL Editor.
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-MIGRATIONS_DIR="$ROOT_DIR/supabase/migrations"
-OUTPUT="$ROOT_DIR/supabase/sql/apply_in_sql_editor.sql"
+cd "$ROOT_DIR"
 
-if [[ ! -d "$MIGRATIONS_DIR" ]]; then
-  echo "ERROR: $MIGRATIONS_DIR not found" >&2
-  exit 1
-fi
+MIGRATIONS_DIR="supabase/migrations"
+OUT_FILE="supabase/sql/apply_in_sql_editor.sql"
 
-FILES=()
-while IFS= read -r file; do
-  FILES+=("$file")
-done < <(find "$MIGRATIONS_DIR" -maxdepth 1 -name '*.sql' | sort)
+echo "==> Syncing Prisma checksum into migration 04"
+node scripts/compute-prisma-checksum.mjs
 
-if [[ ${#FILES[@]} -eq 0 ]]; then
-  echo "ERROR: no .sql files in $MIGRATIONS_DIR" >&2
-  exit 1
-fi
-
-mkdir -p "$(dirname "$OUTPUT")"
+echo "==> Building ${OUT_FILE}"
 
 {
   cat <<'HEADER'
@@ -35,12 +23,14 @@ mkdir -p "$(dirname "$OUTPUT")"
 
 HEADER
 
-  for file in "${FILES[@]}"; do
-    name="$(basename "$file")"
-    printf '\n-- >>> migrations/%s\n' "$name"
+  shopt -s nullglob
+  for file in "${MIGRATIONS_DIR}"/[0-9]*_*.sql; do
+    rel="${file#${MIGRATIONS_DIR}/}"
+    echo ""
+    echo "-- >>> migrations/${rel}"
     cat "$file"
-    printf '\n'
+    echo ""
   done
-} >"$OUTPUT"
+} > "$OUT_FILE"
 
-echo "==> Wrote ${#FILES[@]} migration(s) to $OUTPUT"
+echo "==> Wrote $(wc -l < "$OUT_FILE" | tr -d ' ') lines to ${OUT_FILE}"
