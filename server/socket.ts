@@ -14,7 +14,8 @@ import {
   getRedisSubClient,
 } from "@/server/lib/redis-clients";
 
-const PORT = Number(process.env.SOCKET_PORT ?? 3001);
+/** Railway injects PORT; local dev uses SOCKET_PORT. */
+const PORT = Number(process.env.PORT ?? process.env.SOCKET_PORT ?? 3001);
 
 type SocketAuth = {
   userId?: string;
@@ -65,7 +66,8 @@ function joinUserRooms(
 
 async function bootstrap(): Promise<void> {
   const httpServer = createServer((req, res) => {
-    if (req.url === "/health") {
+    const path = req.url?.split("?")[0];
+    if (path === "/health" || path === "/api/health") {
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ status: "ok", service: "irrwms-socket" }));
       return;
@@ -73,6 +75,14 @@ async function bootstrap(): Promise<void> {
 
     res.writeHead(404);
     res.end();
+  });
+
+  await new Promise<void>((resolve, reject) => {
+    httpServer.listen(PORT, "0.0.0.0", () => {
+      logger.info({ port: PORT }, "IrrWMS socket server listening");
+      resolve();
+    });
+    httpServer.on("error", reject);
   });
 
   const io = new Server(httpServer, {
@@ -84,24 +94,31 @@ async function bootstrap(): Promise<void> {
     transports: ["websocket", "polling"],
   });
 
-  const pubClient = getRedisPubClient();
-  const subClient = getRedisSubClient();
+  try {
+    const pubClient = getRedisPubClient();
+    const subClient = getRedisSubClient();
 
-  await Promise.all([pubClient.connect(), subClient.connect()]);
-  io.adapter(createAdapter(pubClient, subClient));
+    await Promise.all([pubClient.connect(), subClient.connect()]);
+    io.adapter(createAdapter(pubClient, subClient));
 
-  // Fan-out broadcasts published by worker / API routes via Redis pub/sub.
-  await subClient.subscribe(REDIS_NOTIFICATION_CHANNEL);
-  subClient.on("message", (channel, message) => {
-    if (channel !== REDIS_NOTIFICATION_CHANNEL) return;
+    // Fan-out broadcasts published by worker / API routes via Redis pub/sub.
+    await subClient.subscribe(REDIS_NOTIFICATION_CHANNEL);
+    subClient.on("message", (channel, message) => {
+      if (channel !== REDIS_NOTIFICATION_CHANNEL) return;
 
-    try {
-      const parsed = JSON.parse(message) as NotificationBroadcastPayload;
-      io.to(parsed.room).emit(parsed.event, parsed.payload);
-    } catch (error) {
-      logger.error({ err: error }, "Invalid socket broadcast payload");
-    }
-  });
+      try {
+        const parsed = JSON.parse(message) as NotificationBroadcastPayload;
+        io.to(parsed.room).emit(parsed.event, parsed.payload);
+      } catch (error) {
+        logger.error({ err: error }, "Invalid socket broadcast payload");
+      }
+    });
+  } catch (error) {
+    logger.error(
+      { err: error },
+      "Redis unavailable — socket server up but cross-instance broadcasts disabled",
+    );
+  }
 
   io.use(async (socket, next) => {
     const auth = socket.handshake.auth as SocketAuth;
@@ -155,10 +172,6 @@ async function bootstrap(): Promise<void> {
     socket.on("disconnect", (reason) => {
       logger.info({ userId: user.userId, reason }, "Socket disconnected");
     });
-  });
-
-  httpServer.listen(PORT, () => {
-    logger.info({ port: PORT }, "IrrWMS socket server listening");
   });
 
   const shutdown = async (signal: string) => {

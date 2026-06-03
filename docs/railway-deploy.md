@@ -60,6 +60,16 @@ Railway builds the Docker image (`runner` target) and deploys automatically.
 
 Check logs for **Build succeeded** and **Deployment live**.
 
+### Troubleshooting: healthcheck fails (`/api/health` → service unavailable)
+
+| Symptom in build logs                                     | Fix                                                                                                                                                                                                       |
+| --------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Final steps copy `server/`, `auth.ts` ( **socket** image) | Main app must use Docker target **`runner`**. In Railway → **Settings** → ensure config file is `railway.toml` (or set **Docker target** = `runner`). Do not use the socket image for the public web URL. |
+| Build OK but healthcheck never passes                     | Set `DATABASE_URL`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, `NEXT_PUBLIC_APP_URL` (see table above). Use Supabase session URL port **5432**.                                                                   |
+| Socket service healthcheck                                | Use `railway.socket.toml`, path **`/health`**, and `REDIS_URL` (Upstash TCP URL).                                                                                                                         |
+
+The Dockerfile ends with the **`runner`** stage so a plain `docker build` deploys the Next.js app even if Railway ignores `dockerTarget`.
+
 ### 5. Verify
 
 - `https://YOUR-DOMAIN.up.railway.app/api/health` → `200`
