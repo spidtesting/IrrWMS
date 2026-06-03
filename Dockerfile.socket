@@ -1,0 +1,32 @@
+# IrrWMS Socket.io server — Railway
+# syntax=docker/dockerfile:1
+
+FROM node:20-alpine AS base
+RUN apk add --no-cache libc6-compat openssl wget
+WORKDIR /app
+
+FROM base AS deps
+COPY package.json package-lock.json ./
+RUN npm ci
+
+FROM base AS prisma
+COPY --from=deps /app/node_modules ./node_modules
+COPY prisma ./prisma
+RUN npx prisma generate
+
+FROM base AS socket
+ENV NODE_ENV=production
+RUN addgroup --system --gid 1001 nodejs \
+  && adduser --system --uid 1001 socket
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=prisma /app/node_modules/.prisma ./node_modules/.prisma
+COPY package.json ./
+COPY prisma ./prisma
+COPY server ./server
+COPY lib ./lib
+USER socket
+EXPOSE 3001
+ENV SOCKET_PORT=3001
+HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
+  CMD sh -c 'wget --no-verbose --tries=1 --spider "http://127.0.0.1:${PORT:-3001}/health" || exit 1'
+CMD ["npx", "tsx", "server/socket.ts"]

@@ -29,8 +29,15 @@ To learn more about Next.js, take a look at the following resources:
 
 You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
 
-## Deploy on Vercel
+## Deploy on Railway (recommended)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+This app needs Postgres, Redis, a web app, a socket server, and a background worker.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+See **[docs/deployment.md](./docs/deployment.md)** for the full Railway setup (five services, env vars, domains).
+
+Quick CLI after dashboard setup:
+
+```bash
+chmod +x scripts/railway-deploy.sh
+./scripts/railway-deploy.sh
+```

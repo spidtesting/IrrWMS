@@ -1,0 +1,9 @@
+# IrrWMS worker service — set "Railway Config File" to /railway/worker.toml
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile.worker"
+watchPatterns = ["server/**", "lib/**", "prisma/**"]
+
+[deploy]
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10

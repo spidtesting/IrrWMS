@@ -1,17 +1,17 @@
-# IrrWMS — Railway multi-service deployment
-# Create 3 services from this repo; set Dockerfile build target per service in Railway UI:
-#   web    → target: runner
-#   socket → target: socket
-#   worker → target: worker
+# Default Railway config — use per-service configs instead:
+#   web    → railway/web.toml    (Dockerfile.web)
+#   socket → railway/socket.toml (Dockerfile.socket)
+#   worker → railway/worker.toml (Dockerfile.worker)
 #
-# Docs: docs/deployment.md
+# Full guide: docs/deployment.md
 
 [build]
 builder = "DOCKERFILE"
-dockerfilePath = "Dockerfile"
+dockerfilePath = "Dockerfile.web"
 
 [deploy]
 healthcheckPath = "/api/health"
 healthcheckTimeout = 300
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 10
+preDeployCommand = "npx prisma migrate deploy"

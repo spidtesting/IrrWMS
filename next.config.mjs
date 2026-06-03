@@ -4,6 +4,26 @@ const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 
 const isProduction = process.env.NODE_ENV === "production";
 
+function socketConnectOrigin() {
+  const raw = process.env.NEXT_PUBLIC_SOCKET_URL;
+  if (!raw) return null;
+  try {
+    return new URL(raw).origin;
+  } catch {
+    return null;
+  }
+}
+
+const socketOrigin = socketConnectOrigin();
+const connectSrc = [
+  "'self'",
+  "ws:",
+  "wss:",
+  "https://api.cloudinary.com",
+  "https://res.cloudinary.com",
+  ...(socketOrigin ? [socketOrigin] : []),
+].join(" ");
+
 const securityHeaders = [
   {
     key: "Content-Security-Policy",
@@ -13,7 +33,7 @@ const securityHeaders = [
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "img-src 'self' data: blob: https://res.cloudinary.com",
       "font-src 'self' data: https://fonts.gstatic.com",
-      "connect-src 'self' ws: wss: https://api.cloudinary.com https://res.cloudinary.com",
+      `connect-src ${connectSrc}`,
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",
