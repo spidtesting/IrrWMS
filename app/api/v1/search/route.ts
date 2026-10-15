@@ -13,6 +13,8 @@ const searchQuerySchema = z.object({
   limit: z.coerce.number().int().positive().max(20).default(10),
 });
 
+export const dynamic = "force-dynamic";
+
 export async function GET(request: NextRequest) {
   try {
     const user = await requireAuth();

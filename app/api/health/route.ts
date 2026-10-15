@@ -27,6 +27,8 @@ function databaseHint(message: string): string {
   return "Check DATABASE_URL and DIRECT_URL in Railway Variables (Supabase session URI, port 5432).";
 }
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   let database: "ok" | "error" = "ok";
   let databaseError: string | undefined;

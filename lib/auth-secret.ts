@@ -13,11 +13,16 @@ export function resolveAuthSecret(): string | undefined {
   const secret =
     process.env.NEXTAUTH_SECRET?.trim() || process.env.AUTH_SECRET?.trim() || undefined;
 
-  if (!secret || PLACEHOLDER_SECRETS.has(secret) || secret.length < 32) {
-    return undefined;
+  if (secret && !PLACEHOLDER_SECRETS.has(secret) && secret.length >= 32) {
+    return secret;
   }
 
-  return secret;
+  // Provide a safe fallback in local development so JWT session cookies work out-of-the-box
+  if (process.env.NODE_ENV !== "production") {
+    return "irrwms-development-auth-secret-min-32-chars-long";
+  }
+
+  return undefined;
 }
 
 /** Mirror NEXTAUTH_SECRET → AUTH_SECRET for Auth.js v5. */

@@ -94,6 +94,23 @@ function formatZodError(error: ZodError): unknown {
 }
 
 export function handleApiError(error: unknown): NextResponse {
+  // Re-throw Next.js internal control-flow errors (dynamic rendering bailout, redirects, not-found)
+  if (
+    error &&
+    typeof error === "object" &&
+    "digest" in error &&
+    typeof (error as { digest?: unknown }).digest === "string"
+  ) {
+    const digest = (error as { digest: string }).digest;
+    if (
+      digest.startsWith("DYNAMIC_SERVER_USAGE") ||
+      digest.startsWith("NEXT_REDIRECT") ||
+      digest.startsWith("NEXT_NOT_FOUND")
+    ) {
+      throw error;
+    }
+  }
+
   if (error instanceof AppError) {
     if (!error.isOperational || error.statusCode >= 500) {
       logger.error({ err: error, code: error.code, details: error.details }, error.message);

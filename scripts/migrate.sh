@@ -20,9 +20,7 @@ if [[ -z "$MIGRATE_URL" ]]; then
 fi
 
 export DATABASE_URL="$MIGRATE_URL"
-if [[ -n "${DIRECT_URL:-}" ]]; then
-  export DIRECT_URL="$MIGRATE_URL"
-fi
+export DIRECT_URL="${DIRECT_URL:-$MIGRATE_URL}"
 
 MODE="${1:-deploy}"
 

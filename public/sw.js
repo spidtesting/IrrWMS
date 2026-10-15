@@ -5,29 +5,27 @@
 
 const CACHE_NAME = "irrwms-v1";
 const OFFLINE_QUEUE_KEY = "irrwms-offline-stock-queue";
-const STOCK_ENTRY_API = "/api/v1/stock-entries";
+const STOCK_ENTRY_API = "/api/v1/stock-entry";
 
-const SHELL_ASSETS = [
-  "/",
-  "/login",
-  "/stock-entry",
-  "/manifest.json",
-  "/offline.html",
-];
+const SHELL_ASSETS = ["/", "/login", "/stock-entry", "/manifest.json", "/offline.html"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(SHELL_ASSETS)).then(() => self.skipWaiting()),
+    caches
+      .open(CACHE_NAME)
+      .then((cache) => cache.addAll(SHELL_ASSETS))
+      .then(() => self.skipWaiting()),
   );
 });
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(
-        keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key)),
-      ),
-    ).then(() => self.clients.claim()),
+    caches
+      .keys()
+      .then((keys) =>
+        Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))),
+      )
+      .then(() => self.clients.claim()),
   );
 });
 
@@ -35,10 +33,7 @@ self.addEventListener("fetch", (event) => {
   const { request } = event;
 
   if (request.method !== "GET") {
-    if (
-      request.method === "POST" &&
-      new URL(request.url).pathname.startsWith(STOCK_ENTRY_API)
-    ) {
+    if (request.method === "POST" && new URL(request.url).pathname.startsWith(STOCK_ENTRY_API)) {
       event.respondWith(handleStockEntryPost(request));
     }
     return;
